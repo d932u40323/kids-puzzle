@@ -1,0 +1,1225 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+<title>小小拼圖樂</title>
+<style>
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; user-select: none; -webkit-user-select: none; }
+  html, body {
+    margin: 0; padding: 0; height: 100%; overflow: hidden;
+    font-family: "Comic Sans MS", "Chalkboard SE", "PingFang TC", "Microsoft JhengHei", sans-serif;
+    background: linear-gradient(180deg, #ffe9f3 0%, #e3f4ff 60%, #d6f5e3 100%);
+    touch-action: none; color: #4a4a6a;
+  }
+  .screen {
+    position: absolute; inset: 0;
+    display: flex; flex-direction: column;
+    padding: 14px;
+    overflow: hidden;
+  }
+  .screen[hidden] { display: none; }
+  h1 {
+    margin: 8px 0 18px;
+    font-size: clamp(26px, 6vw, 38px);
+    color: #ff7ab6; text-align: center;
+    text-shadow: 2px 2px 0 #fff, 4px 4px 0 rgba(255,122,182,.25);
+    letter-spacing: 2px;
+  }
+  h2 {
+    margin: 6px 0;
+    font-size: clamp(18px, 4vw, 24px);
+    color: #5a8fbf; text-align: center;
+  }
+  .topbar {
+    display: flex; align-items: center; gap: 10px;
+    margin-bottom: 8px; flex-shrink: 0;
+  }
+  .back-btn {
+    background: white; border: none;
+    padding: 10px 16px; font-size: 18px;
+    border-radius: 999px; font-weight: bold;
+    color: #ff7ab6;
+    box-shadow: 0 3px 0 rgba(255,122,182,.3);
+    cursor: pointer; font-family: inherit;
+  }
+  .back-btn:active { transform: translateY(2px); box-shadow: 0 1px 0 rgba(255,122,182,.3); }
+  .topbar h2 { flex: 1; margin: 0; }
+  .topbar .spacer { width: 90px; } /* balances back button */
+
+  /* ----- Category screen ----- */
+  .categories {
+    flex: 1;
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 12px;
+    align-content: start;
+    padding: 8px 12px 20px;
+    max-width: 500px; width: 100%; margin: 0 auto;
+    overflow-y: auto;
+  }
+  .cat-tile {
+    background: white;
+    border: 4px solid #fff;
+    border-radius: 24px;
+    padding: 14px 18px;
+    display: flex; align-items: center; gap: 16px;
+    cursor: pointer;
+    box-shadow: 0 5px 0 rgba(0,0,0,.08), 0 10px 22px rgba(0,0,0,.08);
+    transition: transform .15s;
+    font-family: inherit;
+    font-size: clamp(20px, 5vw, 28px);
+    font-weight: bold; color: #4a4a6a;
+  }
+  .cat-tile:active { transform: translateY(4px); box-shadow: 0 2px 0 rgba(0,0,0,.08), 0 6px 14px rgba(0,0,0,.08); }
+  .cat-icon {
+    font-size: clamp(50px, 12vw, 70px);
+    width: clamp(70px, 16vw, 100px);
+    height: clamp(70px, 16vw, 100px);
+    display: flex; align-items: center; justify-content: center;
+    border-radius: 22px;
+    flex-shrink: 0;
+  }
+  .cat-animals  { background: linear-gradient(135deg,#ffd89b,#a3d977); }
+  .cat-vehicles { background: linear-gradient(135deg,#b8e3ff,#7fb3ff); }
+  .cat-scenery  { background: linear-gradient(135deg,#ffd4e8,#c8a3ff); }
+  .cat-fruits   { background: linear-gradient(135deg,#ff9a8a,#ffd84d); }
+  .cat-colors   { background: linear-gradient(135deg,#ff6b6b,#ffd84d 30%,#7fc24a 55%,#5fbcff 75%,#a78bfa); }
+
+  /* ----- Picker screen ----- */
+  .difficulty {
+    display: flex; justify-content: center; gap: 10px;
+    margin: 8px 0 14px; flex-shrink: 0;
+  }
+  .diff-btn {
+    background: white; border: 3px solid transparent;
+    padding: 8px 16px; border-radius: 999px;
+    font-size: 16px; font-weight: bold;
+    color: #5a8fbf; cursor: pointer; font-family: inherit;
+    box-shadow: 0 3px 0 rgba(90,143,191,.25);
+  }
+  .diff-btn.active {
+    background: #5a8fbf; color: white;
+    border-color: white;
+  }
+  .puzzle-grid {
+    flex: 1;
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 14px;
+    overflow-y: auto;
+    padding: 4px;
+    align-content: start;
+  }
+  .puzzle-card {
+    background: white;
+    border-radius: 20px;
+    padding: 10px;
+    box-shadow: 0 4px 0 rgba(0,0,0,.06), 0 8px 16px rgba(0,0,0,.06);
+    cursor: pointer; text-align: center;
+    transition: transform .15s;
+  }
+  .puzzle-card:active { transform: translateY(3px); }
+  .puzzle-card canvas {
+    width: 100%; aspect-ratio: 1;
+    border-radius: 14px; display: block;
+  }
+  .puzzle-card .label {
+    margin-top: 6px;
+    font-size: clamp(14px, 3.5vw, 18px);
+    font-weight: bold; color: #4a4a6a;
+  }
+
+  /* ----- Play screen ----- */
+  #screen-play { padding: 10px; }
+  .board-wrap {
+    display: flex; justify-content: center; align-items: center;
+    flex-shrink: 0;
+    margin: 4px auto 10px;
+  }
+  #board {
+    position: relative;
+    background-color: #fff;
+    background-repeat: no-repeat;
+    background-size: cover;
+    border-radius: 18px;
+    border: 4px solid #fff;
+    box-shadow: 0 6px 0 rgba(0,0,0,.08), 0 12px 24px rgba(0,0,0,.08);
+    overflow: hidden;
+  }
+  /* Faded "ghost" full image as guide */
+  #board::before {
+    content: '';
+    position: absolute; inset: 0;
+    background: inherit;
+    background-color: rgba(255,255,255,0.7);
+    background-blend-mode: lighten;
+    opacity: 1;
+    pointer-events: none;
+  }
+  .slot-grid {
+    position: absolute; inset: 0;
+    display: grid;
+    pointer-events: none;
+  }
+  .slot {
+    border: 1px dashed rgba(120,120,140,0.35);
+  }
+  .slot.target-hover { background: rgba(255,184,77,0.25); }
+  .placed-piece {
+    position: absolute;
+    background-repeat: no-repeat;
+    animation: snapIn .4s cubic-bezier(.34,1.56,.64,1);
+    pointer-events: none;
+  }
+  @keyframes snapIn {
+    0% { transform: scale(1.2); }
+    100% { transform: scale(1); }
+  }
+  #tray {
+    flex: 1 1 auto;
+    position: relative;
+    background: rgba(255,255,255,0.45);
+    border-radius: 20px;
+    border: 3px solid #fff;
+    overflow: hidden;
+    margin: 0 4px;
+  }
+  .piece {
+    position: absolute;
+    background-repeat: no-repeat;
+    cursor: grab;
+    border-radius: 6px;
+    box-shadow: 0 3px 6px rgba(0,0,0,.25), inset 0 0 0 2px rgba(255,255,255,.5);
+    transition: transform .3s cubic-bezier(.34,1.56,.64,1), left .3s, top .3s;
+    touch-action: none;
+    will-change: transform, left, top;
+  }
+  .piece.dragging {
+    transition: none;
+    transform: scale(1.15) rotate(-2deg);
+    z-index: 100;
+    box-shadow: 0 10px 18px rgba(0,0,0,.3), inset 0 0 0 2px rgba(255,255,255,.6);
+    cursor: grabbing;
+  }
+  .piece.placed { display: none; }
+
+  /* ----- Win overlay ----- */
+  #win {
+    position: absolute; inset: 0;
+    display: none; flex-direction: column;
+    align-items: center; justify-content: center;
+    background: rgba(255,255,255,0.7);
+    backdrop-filter: blur(6px);
+    z-index: 300;
+    padding: 20px;
+  }
+  #win.show { display: flex; }
+  #win h2 {
+    font-size: clamp(40px, 12vw, 80px);
+    margin: 0 0 10px;
+    color: #ff7ab6;
+    text-shadow: 3px 3px 0 #fff, 6px 6px 0 rgba(255,122,182,.35);
+    animation: cheer 1s ease-in-out infinite;
+  }
+  @keyframes cheer {
+    0%,100% { transform: translateY(0) rotate(-2deg); }
+    50% { transform: translateY(-12px) rotate(2deg); }
+  }
+  #win .win-image {
+    width: clamp(150px, 40vw, 220px);
+    aspect-ratio: 1;
+    border-radius: 20px;
+    border: 6px solid #fff;
+    box-shadow: 0 8px 20px rgba(0,0,0,.2);
+    margin-bottom: 18px;
+    background-size: cover;
+  }
+  .win-btns { display: flex; gap: 12px; flex-wrap: wrap; justify-content: center; }
+  .win-btn {
+    background: #ff7ab6; color: white; border: none;
+    padding: 14px 26px; font-size: clamp(16px, 4vw, 22px);
+    border-radius: 999px; font-weight: bold;
+    box-shadow: 0 5px 0 #d65d96;
+    cursor: pointer; font-family: inherit;
+  }
+  .win-btn.secondary { background: #7fb3ff; box-shadow: 0 5px 0 #5a8fbf; }
+  .win-btn:active { transform: translateY(3px); box-shadow: 0 2px 0 #d65d96; }
+  .win-btn.secondary:active { box-shadow: 0 2px 0 #5a8fbf; }
+
+  #loader {
+    position: absolute; inset: 0;
+    display: none; flex-direction: column;
+    align-items: center; justify-content: center;
+    background: rgba(255,255,255,0.85);
+    backdrop-filter: blur(4px);
+    z-index: 350;
+    gap: 14px;
+  }
+  #loader.show { display: flex; }
+  .loader-spinner {
+    width: 56px; height: 56px;
+    border: 6px solid #ffd6e8;
+    border-top-color: #ff7ab6;
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+  }
+  .loader-text { color: #ff7ab6; font-weight: bold; font-size: 18px; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .confetti { position: absolute; width: 12px; height: 12px; pointer-events: none; border-radius: 2px; z-index: 250; }
+  .sparkle { position: absolute; pointer-events: none; font-size: 28px; animation: sparkleAnim .9s ease-out forwards; z-index: 250;}
+  @keyframes sparkleAnim {
+    0% { transform: scale(0) rotate(0); opacity: 1; }
+    100% { transform: scale(1.6) rotate(180deg) translateY(-40px); opacity: 0; }
+  }
+</style>
+</head>
+<body>
+
+<!-- Screen 1: Category selection -->
+<div class="screen" id="screen-category">
+  <h1>小小拼圖樂</h1>
+  <h2>選擇拼圖類型</h2>
+  <div class="categories">
+    <button class="cat-tile" data-cat="animals">
+      <div class="cat-icon cat-animals">🐯</div>
+      <span>動物</span>
+    </button>
+    <button class="cat-tile" data-cat="vehicles">
+      <div class="cat-icon cat-vehicles">🚗</div>
+      <span>交通工具</span>
+    </button>
+    <button class="cat-tile" data-cat="scenery">
+      <div class="cat-icon cat-scenery">🏔️</div>
+      <span>風景</span>
+    </button>
+    <button class="cat-tile" data-cat="fruits">
+      <div class="cat-icon cat-fruits">🍎</div>
+      <span>蔬菜水果</span>
+    </button>
+    <button class="cat-tile" data-cat="colors">
+      <div class="cat-icon cat-colors">🌈</div>
+      <span>認識顏色</span>
+    </button>
+  </div>
+</div>
+
+<!-- Screen 2: Puzzle picker -->
+<div class="screen" id="screen-picker" hidden>
+  <div class="topbar">
+    <button class="back-btn" id="back-to-category">← 返回</button>
+    <h2 id="picker-title">選一張拼圖</h2>
+    <div class="spacer"></div>
+  </div>
+  <div class="difficulty">
+    <button class="diff-btn" data-d="2">簡單 2×2</button>
+    <button class="diff-btn active" data-d="3">中等 3×3</button>
+    <button class="diff-btn" data-d="4">挑戰 4×4</button>
+  </div>
+  <div class="puzzle-grid" id="puzzle-grid"></div>
+</div>
+
+<!-- Screen 3: Play -->
+<div class="screen" id="screen-play" hidden>
+  <div class="topbar">
+    <button class="back-btn" id="back-to-picker">← 返回</button>
+    <h2 id="play-title"></h2>
+    <div class="spacer"></div>
+  </div>
+  <div class="board-wrap">
+    <div id="board">
+      <div class="slot-grid" id="slot-grid"></div>
+    </div>
+  </div>
+  <div id="tray"></div>
+  <div id="win">
+    <h2>太棒了！</h2>
+    <div class="win-image" id="win-image"></div>
+    <div class="win-btns">
+      <button class="win-btn" id="play-again-btn">再玩一張</button>
+      <button class="win-btn secondary" id="back-cat-btn">換類型</button>
+    </div>
+  </div>
+  <div id="loader">
+    <div class="loader-spinner"></div>
+    <div class="loader-text">圖片載入中…</div>
+  </div>
+</div>
+
+<script>
+/* ============================================================
+   PUZZLE DEFINITIONS — each draws a single image on a square canvas.
+   Easy to swap with real photos later: just change the draw function
+   to e.g. ctx.drawImage(myLoadedImage, 0, 0, w, h).
+============================================================ */
+
+function fillSky(ctx, w, h, c1, c2) {
+  const g = ctx.createLinearGradient(0,0,0,h);
+  g.addColorStop(0, c1); g.addColorStop(1, c2);
+  ctx.fillStyle = g; ctx.fillRect(0,0,w,h);
+}
+function emoji(ctx, ch, x, y, size) {
+  ctx.font = `${size}px "Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",serif`;
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillText(ch, x, y);
+}
+
+// ----- ANIMALS -----
+function drawTiger(ctx, w, h) {
+  fillSky(ctx, w, h, '#ffe2a8', '#a3d977');
+  ctx.fillStyle = '#7fc24a'; ctx.fillRect(0, h*0.72, w, h*0.28);
+  emoji(ctx, '☀️', w*0.85, h*0.15, h*0.16);
+  emoji(ctx, '🌳', w*0.12, h*0.62, h*0.30);
+  emoji(ctx, '🌳', w*0.88, h*0.62, h*0.30);
+  emoji(ctx, '🌿', w*0.30, h*0.88, h*0.14);
+  emoji(ctx, '🌿', w*0.70, h*0.88, h*0.14);
+  emoji(ctx, '🐯', w*0.5,  h*0.55, h*0.55);
+}
+function drawElephant(ctx, w, h) {
+  fillSky(ctx, w, h, '#d3edff', '#fff2b3');
+  ctx.fillStyle = '#e8d28a'; ctx.fillRect(0, h*0.75, w, h*0.25);
+  emoji(ctx, '☁️', w*0.20, h*0.18, h*0.14);
+  emoji(ctx, '☁️', w*0.78, h*0.12, h*0.14);
+  emoji(ctx, '🌴', w*0.12, h*0.55, h*0.36);
+  emoji(ctx, '🌴', w*0.88, h*0.55, h*0.36);
+  emoji(ctx, '🐘', w*0.5,  h*0.58, h*0.55);
+}
+function drawPanda(ctx, w, h) {
+  fillSky(ctx, w, h, '#e3f4d6', '#b0d68b');
+  emoji(ctx, '🎋', w*0.15, h*0.5, h*0.65);
+  emoji(ctx, '🎋', w*0.85, h*0.5, h*0.65);
+  emoji(ctx, '🌸', w*0.25, h*0.18, h*0.12);
+  emoji(ctx, '🌸', w*0.75, h*0.22, h*0.12);
+  emoji(ctx, '🐼', w*0.5,  h*0.6, h*0.55);
+}
+function drawGiraffe(ctx, w, h) {
+  fillSky(ctx, w, h, '#ffd89b', '#ff9a76');
+  ctx.fillStyle = '#d68f4a'; ctx.fillRect(0, h*0.78, w, h*0.22);
+  emoji(ctx, '☀️', w*0.15, h*0.15, h*0.16);
+  emoji(ctx, '🌳', w*0.85, h*0.70, h*0.30);
+  emoji(ctx, '🦒', w*0.45, h*0.50, h*0.70);
+}
+function drawLion(ctx, w, h) {
+  fillSky(ctx, w, h, '#fff2c4', '#f4b860');
+  ctx.fillStyle = '#cb8842'; ctx.fillRect(0, h*0.75, w, h*0.25);
+  emoji(ctx, '☀️', w*0.82, h*0.18, h*0.18);
+  emoji(ctx, '🌵', w*0.15, h*0.65, h*0.28);
+  emoji(ctx, '🦁', w*0.5,  h*0.55, h*0.55);
+}
+function drawPenguin(ctx, w, h) {
+  fillSky(ctx, w, h, '#cfeeff', '#7cc4f0');
+  ctx.fillStyle = '#ffffff'; ctx.fillRect(0, h*0.72, w, h*0.28);
+  emoji(ctx, '❄️', w*0.18, h*0.20, h*0.12);
+  emoji(ctx, '❄️', w*0.82, h*0.30, h*0.10);
+  emoji(ctx, '🏔️', w*0.78, h*0.55, h*0.40);
+  emoji(ctx, '🐧', w*0.45, h*0.60, h*0.50);
+  emoji(ctx, '🐟', w*0.18, h*0.85, h*0.16);
+}
+
+// ----- VEHICLES -----
+function drawRoad(ctx, w, h, roadTop) {
+  // sky
+  fillSky(ctx, w, h, '#b8e3ff', '#d3edff');
+  // road
+  ctx.fillStyle = '#5a5a6a'; ctx.fillRect(0, roadTop, w, h - roadTop);
+  // dashed lines
+  ctx.fillStyle = '#fff';
+  const lineY = roadTop + (h - roadTop) * 0.5 - 4;
+  for (let x = 0; x < w; x += w * 0.12) {
+    ctx.fillRect(x, lineY, w * 0.07, 6);
+  }
+}
+function drawCar(ctx, w, h) {
+  drawRoad(ctx, w, h, h*0.65);
+  emoji(ctx, '☀️', w*0.85, h*0.15, h*0.16);
+  emoji(ctx, '🏢', w*0.12, h*0.45, h*0.35);
+  emoji(ctx, '🏠', w*0.85, h*0.50, h*0.25);
+  emoji(ctx, '🚗', w*0.5,  h*0.78, h*0.45);
+}
+function drawFireTruck(ctx, w, h) {
+  drawRoad(ctx, w, h, h*0.65);
+  emoji(ctx, '☁️', w*0.15, h*0.15, h*0.14);
+  emoji(ctx, '🏢', w*0.85, h*0.40, h*0.40);
+  emoji(ctx, '🌳', w*0.10, h*0.55, h*0.25);
+  emoji(ctx, '🚒', w*0.5,  h*0.78, h*0.50);
+}
+function drawTrain(ctx, w, h) {
+  fillSky(ctx, w, h, '#d3edff', '#fff2b3');
+  // tracks
+  ctx.fillStyle = '#8a7a5a'; ctx.fillRect(0, h*0.78, w, h*0.05);
+  ctx.fillStyle = '#5a5a6a';
+  for (let x = 0; x < w; x += w * 0.10) {
+    ctx.fillRect(x, h*0.83, w*0.07, h*0.04);
+  }
+  emoji(ctx, '☀️', w*0.85, h*0.15, h*0.14);
+  emoji(ctx, '🏔️', w*0.18, h*0.45, h*0.36);
+  emoji(ctx, '🌳', w*0.85, h*0.55, h*0.20);
+  emoji(ctx, '🚂', w*0.5,  h*0.68, h*0.40);
+}
+function drawPlane(ctx, w, h) {
+  fillSky(ctx, w, h, '#7cc4f0', '#cfeeff');
+  emoji(ctx, '☁️', w*0.15, h*0.30, h*0.16);
+  emoji(ctx, '☁️', w*0.80, h*0.55, h*0.18);
+  emoji(ctx, '☀️', w*0.85, h*0.18, h*0.18);
+  emoji(ctx, '✈️', w*0.5,  h*0.50, h*0.55);
+  ctx.fillStyle = '#7fc24a'; ctx.fillRect(0, h*0.88, w, h*0.12);
+}
+function drawBoat(ctx, w, h) {
+  fillSky(ctx, w, h, '#b8e3ff', '#7cc4f0');
+  // water
+  ctx.fillStyle = '#3a8fd4'; ctx.fillRect(0, h*0.62, w, h*0.38);
+  // waves
+  ctx.fillStyle = 'rgba(255,255,255,0.5)';
+  for (let y = h*0.7; y < h; y += h*0.08) {
+    for (let x = 0; x < w; x += w*0.15) {
+      ctx.beginPath(); ctx.arc(x, y, w*0.025, 0, Math.PI, true); ctx.fill();
+    }
+  }
+  emoji(ctx, '☀️', w*0.82, h*0.18, h*0.18);
+  emoji(ctx, '☁️', w*0.20, h*0.20, h*0.14);
+  emoji(ctx, '⛵', w*0.50, h*0.55, h*0.45);
+}
+function drawRocket(ctx, w, h) {
+  fillSky(ctx, w, h, '#1a1a3a', '#5a3a7a');
+  // stars
+  ctx.fillStyle = '#fff';
+  const stars = [[0.1,0.15],[0.2,0.4],[0.8,0.2],[0.9,0.5],[0.4,0.1],[0.7,0.35],[0.15,0.7]];
+  stars.forEach(([x,y]) => { ctx.beginPath(); ctx.arc(w*x, h*y, w*0.012, 0, Math.PI*2); ctx.fill(); });
+  emoji(ctx, '🌙', w*0.18, h*0.22, h*0.18);
+  emoji(ctx, '⭐', w*0.85, h*0.30, h*0.12);
+  emoji(ctx, '🪐', w*0.80, h*0.75, h*0.20);
+  emoji(ctx, '🚀', w*0.50, h*0.55, h*0.55);
+}
+
+// ----- SCENERY -----
+function drawMountainScene(ctx, w, h) {
+  fillSky(ctx, w, h, '#ffd89b', '#7cc4f0');
+  // sun
+  ctx.fillStyle = '#fff0a8';
+  ctx.beginPath(); ctx.arc(w*0.5, h*0.35, w*0.10, 0, Math.PI*2); ctx.fill();
+  // back mountains
+  ctx.fillStyle = '#7a90b8';
+  ctx.beginPath();
+  ctx.moveTo(0, h*0.7);
+  ctx.lineTo(w*0.3, h*0.35);
+  ctx.lineTo(w*0.55, h*0.6);
+  ctx.lineTo(w*0.85, h*0.30);
+  ctx.lineTo(w, h*0.55);
+  ctx.lineTo(w, h); ctx.lineTo(0, h); ctx.closePath(); ctx.fill();
+  // snow caps
+  ctx.fillStyle = '#ffffff';
+  ctx.beginPath(); ctx.moveTo(w*0.22, h*0.46); ctx.lineTo(w*0.3, h*0.35); ctx.lineTo(w*0.38, h*0.47); ctx.closePath(); ctx.fill();
+  ctx.beginPath(); ctx.moveTo(w*0.77, h*0.41); ctx.lineTo(w*0.85, h*0.30); ctx.lineTo(w*0.93, h*0.42); ctx.closePath(); ctx.fill();
+  // foreground
+  ctx.fillStyle = '#5a8a4a';
+  ctx.beginPath();
+  ctx.moveTo(0, h*0.85); ctx.lineTo(w*0.4, h*0.7); ctx.lineTo(w*0.7, h*0.82); ctx.lineTo(w, h*0.75); ctx.lineTo(w, h); ctx.lineTo(0, h); ctx.closePath(); ctx.fill();
+  emoji(ctx, '🌲', w*0.15, h*0.82, h*0.18);
+  emoji(ctx, '🌲', w*0.80, h*0.86, h*0.20);
+  emoji(ctx, '🌲', w*0.50, h*0.88, h*0.16);
+}
+function drawBeach(ctx, w, h) {
+  fillSky(ctx, w, h, '#ffb88c', '#ffe2a8');
+  // sun
+  ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(w*0.5, h*0.40, w*0.12, 0, Math.PI*2); ctx.fill();
+  ctx.fillStyle = '#ffd89b'; ctx.beginPath(); ctx.arc(w*0.5, h*0.40, w*0.09, 0, Math.PI*2); ctx.fill();
+  // sea
+  ctx.fillStyle = '#3a8fd4'; ctx.fillRect(0, h*0.55, w, h*0.20);
+  ctx.fillStyle = 'rgba(255,255,255,0.5)';
+  for (let x = 0; x < w; x += w*0.12) {
+    ctx.beginPath(); ctx.arc(x, h*0.62, w*0.02, 0, Math.PI, true); ctx.fill();
+    ctx.beginPath(); ctx.arc(x+w*0.06, h*0.70, w*0.02, 0, Math.PI, true); ctx.fill();
+  }
+  // sand
+  ctx.fillStyle = '#f4d89b'; ctx.fillRect(0, h*0.75, w, h*0.25);
+  emoji(ctx, '⛱️', w*0.78, h*0.65, h*0.30);
+  emoji(ctx, '🌴', w*0.15, h*0.55, h*0.42);
+  emoji(ctx, '🐚', w*0.30, h*0.92, h*0.12);
+  emoji(ctx, '🏖️', w*0.55, h*0.90, h*0.15);
+}
+function drawCity(ctx, w, h) {
+  fillSky(ctx, w, h, '#ffaad4', '#7a4a9a');
+  // sun
+  ctx.fillStyle = '#ffd84d';
+  ctx.beginPath(); ctx.arc(w*0.5, h*0.50, w*0.13, 0, Math.PI*2); ctx.fill();
+  // buildings silhouette
+  ctx.fillStyle = '#2a2a4a';
+  const blds = [[0.05,0.30],[0.18,0.45],[0.28,0.25],[0.40,0.40],[0.50,0.30],[0.60,0.50],[0.72,0.28],[0.85,0.40]];
+  blds.forEach(([x,bh]) => {
+    const bw = w*0.12;
+    ctx.fillRect(w*x, h*(1-bh), bw, h*bh);
+    // windows
+    ctx.fillStyle = '#ffd84d';
+    for (let yy = h*(1-bh)+h*0.04; yy < h*0.95; yy += h*0.06) {
+      for (let xx = w*x+bw*0.18; xx < w*x+bw*0.85; xx += bw*0.3) {
+        if (Math.random() > 0.35) ctx.fillRect(xx, yy, bw*0.18, h*0.025);
+      }
+    }
+    ctx.fillStyle = '#2a2a4a';
+  });
+  // ground
+  ctx.fillStyle = '#1a1a3a'; ctx.fillRect(0, h*0.93, w, h*0.07);
+}
+function drawForest(ctx, w, h) {
+  fillSky(ctx, w, h, '#cfeeff', '#b0d68b');
+  // ground
+  ctx.fillStyle = '#5a8a4a'; ctx.fillRect(0, h*0.78, w, h*0.22);
+  // path
+  ctx.fillStyle = '#c8a878';
+  ctx.beginPath();
+  ctx.moveTo(w*0.4, h*0.78); ctx.lineTo(w*0.6, h*0.78); ctx.lineTo(w*0.7, h); ctx.lineTo(w*0.3, h); ctx.closePath(); ctx.fill();
+  emoji(ctx, '☀️', w*0.85, h*0.12, h*0.14);
+  emoji(ctx, '🌲', w*0.10, h*0.55, h*0.40);
+  emoji(ctx, '🌲', w*0.28, h*0.65, h*0.32);
+  emoji(ctx, '🌳', w*0.78, h*0.60, h*0.38);
+  emoji(ctx, '🌳', w*0.92, h*0.70, h*0.30);
+  emoji(ctx, '🍄', w*0.20, h*0.88, h*0.14);
+  emoji(ctx, '🌻', w*0.78, h*0.88, h*0.14);
+  emoji(ctx, '🦋', w*0.55, h*0.40, h*0.14);
+}
+function drawRainbow(ctx, w, h) {
+  fillSky(ctx, w, h, '#cfeeff', '#fff2b3');
+  // rainbow arcs
+  const cx = w*0.5, cy = h*0.95, base = w*0.55;
+  const colors = ['#ff6b6b','#ffa94d','#ffd84d','#7fc24a','#5fbcff','#a78bfa'];
+  ctx.lineWidth = w*0.05;
+  colors.forEach((c, i) => {
+    ctx.strokeStyle = c;
+    ctx.beginPath();
+    ctx.arc(cx, cy, base - i*w*0.05, Math.PI, 0);
+    ctx.stroke();
+  });
+  // ground
+  ctx.fillStyle = '#7fc24a'; ctx.fillRect(0, h*0.85, w, h*0.15);
+  emoji(ctx, '☁️', w*0.15, h*0.25, h*0.16);
+  emoji(ctx, '☁️', w*0.85, h*0.20, h*0.16);
+  emoji(ctx, '🌷', w*0.15, h*0.92, h*0.12);
+  emoji(ctx, '🌼', w*0.40, h*0.94, h*0.10);
+  emoji(ctx, '🌻', w*0.85, h*0.92, h*0.12);
+}
+
+// ----- FRUITS & VEGETABLES -----
+function drawApple(ctx, w, h) {
+  fillSky(ctx, w, h, '#ffe5e0', '#a3d977');
+  ctx.fillStyle = '#7fc24a'; ctx.fillRect(0, h*0.78, w, h*0.22);
+  emoji(ctx, '☀️', w*0.85, h*0.15, h*0.14);
+  emoji(ctx, '🌳', w*0.12, h*0.5, h*0.50);
+  emoji(ctx, '🍎', w*0.58, h*0.58, h*0.50);
+  emoji(ctx, '🍃', w*0.30, h*0.88, h*0.14);
+}
+function drawBanana(ctx, w, h) {
+  fillSky(ctx, w, h, '#fff5b3', '#ffd84d');
+  emoji(ctx, '☀️', w*0.85, h*0.18, h*0.18);
+  emoji(ctx, '☁️', w*0.18, h*0.20, h*0.14);
+  emoji(ctx, '🌴', w*0.15, h*0.55, h*0.42);
+  emoji(ctx, '🍌', w*0.58, h*0.60, h*0.55);
+}
+function drawStrawberry(ctx, w, h) {
+  fillSky(ctx, w, h, '#fff0d8', '#ffd6e8');
+  ctx.fillStyle = '#7fc24a'; ctx.fillRect(0, h*0.78, w, h*0.22);
+  emoji(ctx, '☀️', w*0.85, h*0.15, h*0.14);
+  emoji(ctx, '🌿', w*0.18, h*0.88, h*0.16);
+  emoji(ctx, '🍓', w*0.32, h*0.56, h*0.38);
+  emoji(ctx, '🍓', w*0.72, h*0.65, h*0.42);
+  emoji(ctx, '🍓', w*0.55, h*0.32, h*0.26);
+}
+function drawWatermelon(ctx, w, h) {
+  fillSky(ctx, w, h, '#cfeeff', '#b0d68b');
+  ctx.fillStyle = '#7fc24a'; ctx.fillRect(0, h*0.80, w, h*0.20);
+  emoji(ctx, '☀️', w*0.85, h*0.15, h*0.16);
+  emoji(ctx, '🌴', w*0.85, h*0.55, h*0.32);
+  emoji(ctx, '🍉', w*0.45, h*0.60, h*0.55);
+}
+function drawCarrot(ctx, w, h) {
+  fillSky(ctx, w, h, '#fff2c4', '#b0d68b');
+  ctx.fillStyle = '#c8a878'; ctx.fillRect(0, h*0.72, w, h*0.28);
+  emoji(ctx, '☀️', w*0.85, h*0.18, h*0.16);
+  emoji(ctx, '🌿', w*0.18, h*0.82, h*0.18);
+  emoji(ctx, '🌿', w*0.80, h*0.88, h*0.16);
+  emoji(ctx, '🥕', w*0.55, h*0.55, h*0.50);
+  emoji(ctx, '🐰', w*0.20, h*0.55, h*0.28);
+}
+function drawCorn(ctx, w, h) {
+  fillSky(ctx, w, h, '#cfeeff', '#fff2c4');
+  ctx.fillStyle = '#a3d977'; ctx.fillRect(0, h*0.80, w, h*0.20);
+  emoji(ctx, '☀️', w*0.20, h*0.18, h*0.16);
+  emoji(ctx, '🌾', w*0.18, h*0.65, h*0.28);
+  emoji(ctx, '🌾', w*0.82, h*0.65, h*0.28);
+  emoji(ctx, '🌽', w*0.55, h*0.55, h*0.52);
+}
+function drawGrapes(ctx, w, h) {
+  fillSky(ctx, w, h, '#e8d0ff', '#cfeeff');
+  ctx.fillStyle = '#a3d977'; ctx.fillRect(0, h*0.80, w, h*0.20);
+  emoji(ctx, '☀️', w*0.85, h*0.15, h*0.16);
+  emoji(ctx, '🍇', w*0.50, h*0.55, h*0.55);
+  emoji(ctx, '🍃', w*0.20, h*0.88, h*0.14);
+}
+function drawTomato(ctx, w, h) {
+  fillSky(ctx, w, h, '#fff5b3', '#ffd0c4');
+  ctx.fillStyle = '#7fc24a'; ctx.fillRect(0, h*0.78, w, h*0.22);
+  emoji(ctx, '☀️', w*0.85, h*0.15, h*0.14);
+  emoji(ctx, '🌱', w*0.18, h*0.85, h*0.18);
+  emoji(ctx, '🍅', w*0.40, h*0.58, h*0.40);
+  emoji(ctx, '🍅', w*0.72, h*0.65, h*0.36);
+}
+
+// ----- COLORS (teach the color name + show items of that color) -----
+function drawColorLabel(ctx, w, h, text) {
+  ctx.font = `bold ${Math.round(h*0.14)}px "PingFang TC","Microsoft JhengHei",sans-serif`;
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.lineJoin = 'round';
+  ctx.lineWidth = h*0.022;
+  ctx.strokeStyle = 'rgba(0,0,0,0.55)';
+  ctx.strokeText(text, w*0.5, h*0.12);
+  ctx.fillStyle = '#ffffff';
+  ctx.fillText(text, w*0.5, h*0.12);
+}
+function drawColorRed(ctx, w, h) {
+  fillSky(ctx, w, h, '#ff9a8a', '#e84747');
+  drawColorLabel(ctx, w, h, '紅色');
+  emoji(ctx, '🍎', w*0.28, h*0.42, h*0.26);
+  emoji(ctx, '🍓', w*0.72, h*0.42, h*0.26);
+  emoji(ctx, '🍒', w*0.28, h*0.74, h*0.26);
+  emoji(ctx, '❤️', w*0.72, h*0.74, h*0.26);
+}
+function drawColorYellow(ctx, w, h) {
+  fillSky(ctx, w, h, '#fff5b3', '#ffce3a');
+  drawColorLabel(ctx, w, h, '黃色');
+  emoji(ctx, '🍌', w*0.28, h*0.42, h*0.26);
+  emoji(ctx, '☀️', w*0.72, h*0.42, h*0.26);
+  emoji(ctx, '🌟', w*0.28, h*0.74, h*0.26);
+  emoji(ctx, '🐤', w*0.72, h*0.74, h*0.26);
+}
+function drawColorGreen(ctx, w, h) {
+  fillSky(ctx, w, h, '#c8f0a3', '#5fc24a');
+  drawColorLabel(ctx, w, h, '綠色');
+  emoji(ctx, '🍏', w*0.28, h*0.42, h*0.26);
+  emoji(ctx, '🌳', w*0.72, h*0.42, h*0.26);
+  emoji(ctx, '🥒', w*0.28, h*0.74, h*0.26);
+  emoji(ctx, '🐸', w*0.72, h*0.74, h*0.26);
+}
+function drawColorBlue(ctx, w, h) {
+  fillSky(ctx, w, h, '#a3d0ff', '#3a8fd4');
+  drawColorLabel(ctx, w, h, '藍色');
+  emoji(ctx, '🐳', w*0.28, h*0.42, h*0.26);
+  emoji(ctx, '🫐', w*0.72, h*0.42, h*0.26);
+  emoji(ctx, '💧', w*0.28, h*0.74, h*0.26);
+  emoji(ctx, '🦋', w*0.72, h*0.74, h*0.26);
+}
+function drawColorOrange(ctx, w, h) {
+  fillSky(ctx, w, h, '#ffd89b', '#ff8a4a');
+  drawColorLabel(ctx, w, h, '橘色');
+  emoji(ctx, '🍊', w*0.28, h*0.42, h*0.26);
+  emoji(ctx, '🥕', w*0.72, h*0.42, h*0.26);
+  emoji(ctx, '🎃', w*0.28, h*0.74, h*0.26);
+  emoji(ctx, '🦊', w*0.72, h*0.74, h*0.26);
+}
+function drawColorPurple(ctx, w, h) {
+  fillSky(ctx, w, h, '#e0c0ff', '#9a6acf');
+  drawColorLabel(ctx, w, h, '紫色');
+  emoji(ctx, '🍇', w*0.28, h*0.42, h*0.26);
+  emoji(ctx, '🍆', w*0.72, h*0.42, h*0.26);
+  emoji(ctx, '🦄', w*0.28, h*0.74, h*0.26);
+  emoji(ctx, '💜', w*0.72, h*0.74, h*0.26);
+}
+function drawColorPink(ctx, w, h) {
+  fillSky(ctx, w, h, '#ffe0ec', '#ff9ac8');
+  drawColorLabel(ctx, w, h, '粉紅色');
+  emoji(ctx, '🌸', w*0.28, h*0.42, h*0.26);
+  emoji(ctx, '🍑', w*0.72, h*0.42, h*0.26);
+  emoji(ctx, '🐷', w*0.28, h*0.74, h*0.26);
+  emoji(ctx, '💗', w*0.72, h*0.74, h*0.26);
+}
+
+// Wikipedia/Wikimedia Commons photos for richer visuals.
+// `img` = full image URL (we shrink via wikiThumb); `draw` = offline fallback.
+const PUZZLES = {
+  animals: [
+    { name: '老虎', img: 'https://upload.wikimedia.org/wikipedia/commons/thumb/b/b0/Bengal_tiger_%28Panthera_tigris_tigris%29_female_3_crop.jpg/3840px-Bengal_tiger_%28Panthera_tigris_tigris%29_female_3_crop.jpg', draw: drawTiger },
+    { name: '大象', img: 'https://upload.wikimedia.org/wikipedia/commons/3/37/African_Bush_Elephant.jpg', draw: drawElephant },
+    { name: '熊貓', img: 'https://upload.wikimedia.org/wikipedia/commons/thumb/0/0f/Grosser_Panda.JPG/3840px-Grosser_Panda.JPG', draw: drawPanda },
+    { name: '長頸鹿', img: 'https://upload.wikimedia.org/wikipedia/commons/9/9e/Giraffe_Mikumi_National_Park.jpg', draw: drawGiraffe },
+    { name: '獅子', img: 'https://upload.wikimedia.org/wikipedia/commons/thumb/a/a6/020_The_lion_king_Snyggve_in_the_Serengeti_National_Park_Photo_by_Giles_Laurent.jpg/3840px-020_The_lion_king_Snyggve_in_the_Serengeti_National_Park_Photo_by_Giles_Laurent.jpg', draw: drawLion },
+    { name: '企鵝', img: 'https://upload.wikimedia.org/wikipedia/commons/a/a3/Aptenodytes_forsteri_-Snow_Hill_Island%2C_Antarctica_-adults_and_juvenile-8.jpg', draw: drawPenguin },
+  ],
+  vehicles: [
+    { name: '汽車', img: 'https://upload.wikimedia.org/wikipedia/commons/thumb/1/12/1925_Ford_Model_T_touring.jpg/3840px-1925_Ford_Model_T_touring.jpg', draw: drawCar },
+    { name: '消防車', img: 'https://upload.wikimedia.org/wikipedia/commons/thumb/d/d0/Dublin_Fire_Brigade_Pump_Ladder_D32.jpg/3840px-Dublin_Fire_Brigade_Pump_Ladder_D32.jpg', draw: drawFireTruck },
+    { name: '火車', img: 'https://upload.wikimedia.org/wikipedia/commons/thumb/5/5a/Number_4468_Mallard_in_York.jpg/3840px-Number_4468_Mallard_in_York.jpg', draw: drawTrain },
+    { name: '飛機', img: 'https://upload.wikimedia.org/wikipedia/commons/thumb/8/83/United_A320_N405UA_at_BOS_%2833787222465%29.jpg/3840px-United_A320_N405UA_at_BOS_%2833787222465%29.jpg', draw: drawPlane },
+    { name: '帆船', img: 'https://upload.wikimedia.org/wikipedia/commons/thumb/f/fb/Sloop_Example.svg/500px-Sloop_Example.svg.png', draw: drawBoat },
+    { name: '火箭', img: 'https://upload.wikimedia.org/wikipedia/commons/9/9a/Soyuz_TMA-9_launch.jpg', draw: drawRocket },
+  ],
+  scenery: [
+    { name: '富士山', img: 'https://upload.wikimedia.org/wikipedia/commons/thumb/f/f8/View_of_Mount_Fuji_from_%C5%8Cwakudani_20211202.jpg/3840px-View_of_Mount_Fuji_from_%C5%8Cwakudani_20211202.jpg', draw: drawMountainScene },
+    { name: '海邊', img: 'https://upload.wikimedia.org/wikipedia/commons/7/73/Beach_at_Fort_Lauderdale.jpg', draw: drawBeach },
+    { name: '城市夜景', img: 'https://upload.wikimedia.org/wikipedia/commons/thumb/3/3d/Broadway_%289075158922%29.jpg/3840px-Broadway_%289075158922%29.jpg', draw: drawCity },
+    { name: '森林', img: 'https://upload.wikimedia.org/wikipedia/commons/d/d0/Aerial_view_of_the_Amazon_Rainforest.jpg', draw: drawForest },
+    { name: '彩虹', img: 'https://upload.wikimedia.org/wikipedia/commons/5/5c/Double-alaskan-rainbow.jpg', draw: drawRainbow },
+  ],
+  fruits: [
+    { name: '蘋果', img: 'https://upload.wikimedia.org/wikipedia/commons/a/a6/Pink_lady_and_cross_section.jpg', draw: drawApple },
+    { name: '香蕉', img: 'https://upload.wikimedia.org/wikipedia/commons/d/de/Bananavarieties.jpg', draw: drawBanana },
+    { name: '草莓', img: 'https://upload.wikimedia.org/wikipedia/commons/thumb/4/4c/Garden_strawberry_%28Fragaria_%C3%97_ananassa%29_single2.jpg/3840px-Garden_strawberry_%28Fragaria_%C3%97_ananassa%29_single2.jpg', draw: drawStrawberry },
+    { name: '西瓜', img: 'https://upload.wikimedia.org/wikipedia/commons/4/47/Taiwan_2009_Tainan_City_Organic_Farm_Watermelon_FRD_7962.jpg', draw: drawWatermelon },
+    { name: '胡蘿蔔', img: 'https://upload.wikimedia.org/wikipedia/commons/thumb/a/a2/Vegetable-Carrot-Bundle-wStalks.jpg/3840px-Vegetable-Carrot-Bundle-wStalks.jpg', draw: drawCarrot },
+    { name: '玉米', img: 'https://upload.wikimedia.org/wikipedia/commons/7/79/VegCorn.jpg', draw: drawCorn },
+    { name: '葡萄', img: 'https://upload.wikimedia.org/wikipedia/commons/thumb/5/53/Grapes%2C_Rostov-on-Don%2C_Russia.jpg/3840px-Grapes%2C_Rostov-on-Don%2C_Russia.jpg', draw: drawGrapes },
+    { name: '番茄', img: 'https://upload.wikimedia.org/wikipedia/commons/8/89/Tomato_je.jpg', draw: drawTomato },
+  ],
+  colors: [
+    { name: '紅色', draw: drawColorRed },
+    { name: '黃色', draw: drawColorYellow },
+    { name: '綠色', draw: drawColorGreen },
+    { name: '藍色', draw: drawColorBlue },
+    { name: '橘色', draw: drawColorOrange },
+    { name: '紫色', draw: drawColorPurple },
+    { name: '粉紅色', draw: drawColorPink },
+  ],
+};
+
+// ---- Image loading helpers ----
+const imageCache = new Map();
+function loadImage(url) {
+  if (imageCache.has(url)) return imageCache.get(url);
+  const p = new Promise((resolve, reject) => {
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = () => resolve(img);
+    img.onerror = () => reject(new Error('img load failed: ' + url));
+    img.src = url;
+  });
+  imageCache.set(url, p);
+  return p;
+}
+// Rewrite Wikipedia URL to a smaller thumbnail size
+function wikiThumb(url, size) {
+  if (!url) return url;
+  if (url.includes('/thumb/')) {
+    return url.replace(/\/(\d+)px-([^/]+)$/, '/' + size + 'px-$2');
+  }
+  const m = url.match(/\/wikipedia\/commons\/([0-9a-f])\/([0-9a-f]{2})\/([^/]+)$/);
+  if (m) {
+    const file = m[3];
+    const ext = file.split('.').pop().toLowerCase();
+    const thumbName = (ext === 'svg') ? (file + '.png') : file;
+    return 'https://upload.wikimedia.org/wikipedia/commons/thumb/' + m[1] + '/' + m[2] + '/' + file + '/' + size + 'px-' + thumbName;
+  }
+  return url;
+}
+function drawImageCover(ctx, img, w, h) {
+  const ratio = Math.max(w / img.width, h / img.height);
+  const dw = img.width * ratio, dh = img.height * ratio;
+  ctx.drawImage(img, (w - dw) / 2, (h - dh) / 2, dw, dh);
+}
+async function paintPuzzleImage(ctx, puzzle, w, h, size) {
+  ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, w, h);
+  if (puzzle.img) {
+    try {
+      const img = await loadImage(wikiThumb(puzzle.img, size));
+      drawImageCover(ctx, img, w, h);
+      return true;
+    } catch (e) {
+      // fall through to draw fallback
+    }
+  }
+  if (puzzle.draw) puzzle.draw(ctx, w, h);
+  return false;
+}
+
+const CAT_LABEL = { animals: '動物', vehicles: '交通工具', scenery: '風景', fruits: '蔬菜水果', colors: '顏色' };
+
+/* ============================================================
+   AUDIO (Web Audio API, no asset files)
+============================================================ */
+let audioCtx = null;
+function ensureAudio() {
+  if (!audioCtx) {
+    try { audioCtx = new (window.AudioContext || window.webkitAudioContext)(); } catch(e) {}
+  }
+  if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
+}
+function playTone(freq, dur = 0.15, type = 'sine', vol = 0.2, when = 0) {
+  if (!audioCtx) return;
+  const t = audioCtx.currentTime + when;
+  const osc = audioCtx.createOscillator();
+  const g = audioCtx.createGain();
+  osc.type = type; osc.frequency.value = freq;
+  g.gain.setValueAtTime(0, t);
+  g.gain.linearRampToValueAtTime(vol, t + 0.01);
+  g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+  osc.connect(g).connect(audioCtx.destination);
+  osc.start(t); osc.stop(t + dur);
+}
+function soundClick() { playTone(660, 0.07, 'sine', 0.15); }
+function soundSnap() {
+  playTone(523, 0.12, 'sine', 0.25, 0);
+  playTone(784, 0.16, 'sine', 0.25, 0.08);
+}
+function soundWin() {
+  [523, 659, 784, 1047, 784, 1047].forEach((f, i) =>
+    playTone(f, 0.22, 'triangle', 0.3, i * 0.13));
+}
+
+document.addEventListener('pointerdown', ensureAudio, { once: true });
+
+/* ============================================================
+   SCREEN MANAGEMENT
+============================================================ */
+const screens = {
+  category: document.getElementById('screen-category'),
+  picker: document.getElementById('screen-picker'),
+  play: document.getElementById('screen-play'),
+};
+function showScreen(name) {
+  Object.entries(screens).forEach(([k, el]) => el.hidden = (k !== name));
+}
+
+const state = { category: null, puzzleIdx: 0, difficulty: 3 };
+
+/* ----- Category screen ----- */
+document.querySelectorAll('.cat-tile').forEach(btn => {
+  btn.addEventListener('click', () => {
+    ensureAudio(); soundClick();
+    state.category = btn.dataset.cat;
+    buildPicker();
+    showScreen('picker');
+  });
+});
+
+/* ----- Picker screen ----- */
+document.getElementById('back-to-category').addEventListener('click', () => {
+  soundClick(); showScreen('category');
+});
+document.querySelectorAll('.diff-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    soundClick();
+    state.difficulty = parseInt(btn.dataset.d, 10);
+    document.querySelectorAll('.diff-btn').forEach(b => b.classList.toggle('active', b === btn));
+  });
+});
+
+function buildPicker() {
+  document.getElementById('picker-title').textContent = `選一張${CAT_LABEL[state.category]}拼圖`;
+  const grid = document.getElementById('puzzle-grid');
+  grid.innerHTML = '';
+  PUZZLES[state.category].forEach((p, idx) => {
+    const card = document.createElement('div');
+    card.className = 'puzzle-card';
+    const canvas = document.createElement('canvas');
+    canvas.width = 240; canvas.height = 240;
+    const ctx = canvas.getContext('2d');
+    // Soft placeholder while loading
+    const g = ctx.createLinearGradient(0,0,0,240);
+    g.addColorStop(0, '#f5f5fa'); g.addColorStop(1, '#e0e0ec');
+    ctx.fillStyle = g; ctx.fillRect(0,0,240,240);
+    ctx.fillStyle = '#bbb';
+    ctx.font = 'bold 18px sans-serif';
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText('載入中…', 120, 120);
+    paintPuzzleImage(ctx, p, 240, 240, 320);
+
+    const label = document.createElement('div');
+    label.className = 'label'; label.textContent = p.name;
+    card.appendChild(canvas); card.appendChild(label);
+    card.addEventListener('click', () => {
+      soundClick();
+      state.puzzleIdx = idx;
+      startPuzzle();
+      showScreen('play');
+    });
+    grid.appendChild(card);
+  });
+}
+
+/* ----- Play screen ----- */
+document.getElementById('back-to-picker').addEventListener('click', () => {
+  soundClick(); showScreen('picker');
+});
+document.getElementById('play-again-btn').addEventListener('click', () => {
+  soundClick(); showScreen('picker');
+});
+document.getElementById('back-cat-btn').addEventListener('click', () => {
+  soundClick(); showScreen('category');
+});
+
+let currentDataUrl = '';
+let currentBoardSize = 0;
+let currentPieceSize = 0;
+let currentN = 0;
+let placedCount = 0;
+
+let puzzleToken = 0;
+async function startPuzzle() {
+  const myToken = ++puzzleToken;
+  const puzzle = PUZZLES[state.category][state.puzzleIdx];
+  document.getElementById('play-title').textContent = puzzle.name;
+  document.getElementById('win').classList.remove('show');
+  document.getElementById('tray').innerHTML = '';
+  document.querySelectorAll('#board .placed-piece').forEach(el => el.remove());
+  document.getElementById('slot-grid').innerHTML = '';
+
+  const loader = document.getElementById('loader');
+  loader.classList.add('show');
+
+  // Generate the source image (async — may fetch a remote photo)
+  const SRC = 800;
+  const c = document.createElement('canvas');
+  c.width = SRC; c.height = SRC;
+  await paintPuzzleImage(c.getContext('2d'), puzzle, SRC, SRC, 800);
+  if (myToken !== puzzleToken) return; // user navigated away or picked another
+
+  currentDataUrl = c.toDataURL();
+  loader.classList.remove('show');
+
+  // Determine display size
+  const vw = window.innerWidth;
+  const vh = window.innerHeight;
+  // Reserve space: topbar ~60, win-board margin ~20, tray min 240
+  const maxByH = vh - 60 - 20 - 240 - 30;
+  const maxByW = vw - 40;
+  currentBoardSize = Math.max(180, Math.min(maxByW, maxByH, 480));
+  currentN = state.difficulty;
+  currentPieceSize = currentBoardSize / currentN;
+  placedCount = 0;
+
+  // Board
+  const board = document.getElementById('board');
+  board.style.width = board.style.height = currentBoardSize + 'px';
+  board.style.backgroundImage = `url(${currentDataUrl})`;
+  board.style.backgroundSize = currentBoardSize + 'px ' + currentBoardSize + 'px';
+  // Remove any placed pieces from previous round
+  board.querySelectorAll('.placed-piece').forEach(el => el.remove());
+
+  // Slot grid for highlighting
+  const slotGrid = document.getElementById('slot-grid');
+  slotGrid.innerHTML = '';
+  slotGrid.style.gridTemplateColumns = `repeat(${currentN}, 1fr)`;
+  slotGrid.style.gridTemplateRows = `repeat(${currentN}, 1fr)`;
+  for (let y = 0; y < currentN; y++) {
+    for (let x = 0; x < currentN; x++) {
+      const s = document.createElement('div');
+      s.className = 'slot';
+      s.dataset.x = x; s.dataset.y = y;
+      slotGrid.appendChild(s);
+    }
+  }
+
+  // Tray
+  const tray = document.getElementById('tray');
+  tray.innerHTML = '';
+  // Build pieces
+  const pieceList = [];
+  for (let y = 0; y < currentN; y++) {
+    for (let x = 0; x < currentN; x++) pieceList.push({ x, y });
+  }
+  pieceList.sort(() => Math.random() - 0.5);
+
+  // Wait one frame for tray to have size
+  requestAnimationFrame(() => {
+    const trayRect = tray.getBoundingClientRect();
+    const positions = scatterPositions(pieceList.length, trayRect.width, trayRect.height, currentPieceSize);
+    pieceList.forEach((p, i) => {
+      const el = document.createElement('div');
+      el.className = 'piece';
+      el.style.width = el.style.height = currentPieceSize + 'px';
+      el.style.backgroundImage = `url(${currentDataUrl})`;
+      el.style.backgroundSize = currentBoardSize + 'px ' + currentBoardSize + 'px';
+      el.style.backgroundPosition = `${-p.x * currentPieceSize}px ${-p.y * currentPieceSize}px`;
+      el.dataset.x = p.x; el.dataset.y = p.y;
+      el.style.left = positions[i].x + 'px';
+      el.style.top = positions[i].y + 'px';
+      el.dataset.homeX = positions[i].x;
+      el.dataset.homeY = positions[i].y;
+      tray.appendChild(el);
+      makeDraggable(el);
+    });
+  });
+}
+
+function scatterPositions(count, w, h, size) {
+  const positions = [];
+  const margin = 6;
+  let tries = 0;
+  while (positions.length < count && tries < 800) {
+    tries++;
+    const x = margin + Math.random() * Math.max(0, w - size - margin * 2);
+    const y = margin + Math.random() * Math.max(0, h - size - margin * 2);
+    let ok = true;
+    for (const p of positions) {
+      const dx = p.x - x, dy = p.y - y;
+      if (Math.hypot(dx, dy) < size * 0.85) { ok = false; break; }
+    }
+    if (ok) positions.push({ x, y });
+  }
+  while (positions.length < count) {
+    const i = positions.length;
+    const cols = Math.max(1, Math.floor(w / (size + 4)));
+    positions.push({
+      x: (i % cols) * (size + 4) + margin,
+      y: Math.floor(i / cols) * (size + 4) + margin,
+    });
+  }
+  return positions;
+}
+
+function makeDraggable(piece) {
+  let dragging = false;
+  let startX = 0, startY = 0;
+  let origLeft = 0, origTop = 0;
+  let pointerId = null;
+
+  piece.addEventListener('pointerdown', (e) => {
+    if (piece.classList.contains('placed')) return;
+    ensureAudio();
+    e.preventDefault();
+    dragging = true;
+    pointerId = e.pointerId;
+    piece.setPointerCapture(pointerId);
+    piece.classList.add('dragging');
+    // Move piece to body so it can be dragged over the board (which is in another container)
+    const rect = piece.getBoundingClientRect();
+    document.body.appendChild(piece);
+    piece.style.position = 'fixed';
+    piece.style.left = rect.left + 'px';
+    piece.style.top = rect.top + 'px';
+    startX = e.clientX; startY = e.clientY;
+    origLeft = rect.left; origTop = rect.top;
+  });
+
+  piece.addEventListener('pointermove', (e) => {
+    if (!dragging) return;
+    const dx = e.clientX - startX;
+    const dy = e.clientY - startY;
+    piece.style.left = (origLeft + dx) + 'px';
+    piece.style.top = (origTop + dy) + 'px';
+
+    // Highlight target slot
+    document.querySelectorAll('.slot.target-hover').forEach(s => s.classList.remove('target-hover'));
+    const slot = slotAtPointer(e.clientX, e.clientY);
+    if (slot && slot.dataset.x == piece.dataset.x && slot.dataset.y == piece.dataset.y) {
+      slot.classList.add('target-hover');
+    }
+  });
+
+  function endDrag(e) {
+    if (!dragging) return;
+    dragging = false;
+    piece.classList.remove('dragging');
+    document.querySelectorAll('.slot.target-hover').forEach(s => s.classList.remove('target-hover'));
+    try { piece.releasePointerCapture(pointerId); } catch (err) {}
+
+    const slot = slotAtPointer(e.clientX, e.clientY);
+    if (slot && slot.dataset.x == piece.dataset.x && slot.dataset.y == piece.dataset.y) {
+      acceptDrop(piece, slot);
+    } else {
+      returnPiece(piece);
+    }
+  }
+  piece.addEventListener('pointerup', endDrag);
+  piece.addEventListener('pointercancel', endDrag);
+}
+
+function slotAtPointer(x, y) {
+  const els = document.elementsFromPoint(x, y);
+  return els.find(el => el.classList && el.classList.contains('slot')) || null;
+}
+
+function returnPiece(piece) {
+  // Send back to tray at home position
+  const tray = document.getElementById('tray');
+  const trayRect = tray.getBoundingClientRect();
+  // Animate from current fixed position to home in tray
+  const targetX = trayRect.left + parseFloat(piece.dataset.homeX);
+  const targetY = trayRect.top + parseFloat(piece.dataset.homeY);
+  piece.style.transition = 'left .35s cubic-bezier(.34,1.56,.64,1), top .35s cubic-bezier(.34,1.56,.64,1)';
+  piece.style.left = targetX + 'px';
+  piece.style.top = targetY + 'px';
+  setTimeout(() => {
+    // Re-attach to tray with relative positioning
+    piece.style.transition = '';
+    piece.style.position = 'absolute';
+    piece.style.left = piece.dataset.homeX + 'px';
+    piece.style.top = piece.dataset.homeY + 'px';
+    tray.appendChild(piece);
+  }, 360);
+}
+
+function acceptDrop(piece, slot) {
+  soundSnap();
+  // Create a placed piece on the board at the exact slot location
+  const board = document.getElementById('board');
+  const placed = document.createElement('div');
+  placed.className = 'placed-piece';
+  placed.style.width = placed.style.height = currentPieceSize + 'px';
+  placed.style.left = (parseInt(piece.dataset.x) * currentPieceSize) + 'px';
+  placed.style.top = (parseInt(piece.dataset.y) * currentPieceSize) + 'px';
+  placed.style.backgroundImage = `url(${currentDataUrl})`;
+  placed.style.backgroundSize = currentBoardSize + 'px ' + currentBoardSize + 'px';
+  placed.style.backgroundPosition = `${-parseInt(piece.dataset.x) * currentPieceSize}px ${-parseInt(piece.dataset.y) * currentPieceSize}px`;
+  board.appendChild(placed);
+  spawnSparkles(slot);
+  piece.remove();
+  placedCount++;
+  if (placedCount === currentN * currentN) {
+    setTimeout(showWin, 500);
+  }
+}
+
+function spawnSparkles(slot) {
+  const rect = slot.getBoundingClientRect();
+  const cx = rect.left + rect.width/2, cy = rect.top + rect.height/2;
+  const symbols = ['✨','⭐','💖','🌟'];
+  for (let i = 0; i < 5; i++) {
+    const s = document.createElement('div');
+    s.className = 'sparkle';
+    s.textContent = symbols[Math.floor(Math.random()*symbols.length)];
+    const a = (Math.PI*2*i)/5;
+    const d = 25 + Math.random()*15;
+    s.style.left = (cx + Math.cos(a)*d - 14) + 'px';
+    s.style.top = (cy + Math.sin(a)*d - 14) + 'px';
+    document.body.appendChild(s);
+    setTimeout(() => s.remove(), 950);
+  }
+}
+
+function showWin() {
+  const win = document.getElementById('win');
+  const wi = document.getElementById('win-image');
+  wi.style.backgroundImage = `url(${currentDataUrl})`;
+  win.classList.add('show');
+  soundWin();
+  launchConfetti();
+}
+
+function launchConfetti() {
+  const colors = ['#ff7ab6','#ffd84d','#6dd28b','#5fbcff','#c08bff','#ff8a5f'];
+  for (let i = 0; i < 70; i++) {
+    const c = document.createElement('div');
+    c.className = 'confetti';
+    c.style.background = colors[Math.floor(Math.random()*colors.length)];
+    c.style.left = Math.random()*window.innerWidth + 'px';
+    c.style.top = '-20px';
+    const rot = Math.random()*360;
+    document.body.appendChild(c);
+    const dur = 1600 + Math.random()*1500;
+    const drift = (Math.random()-0.5)*250;
+    c.animate([
+      { transform: `translate(0,0) rotate(${rot}deg)` },
+      { transform: `translate(${drift}px, ${window.innerHeight+50}px) rotate(${rot+720}deg)` }
+    ], { duration: dur, easing: 'cubic-bezier(.2,.6,.4,1)' });
+    setTimeout(() => c.remove(), dur);
+  }
+}
+
+// Re-layout if rotated/resized while playing
+let resizeTimer = null;
+window.addEventListener('resize', () => {
+  if (!screens.play.hidden) {
+    clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(() => startPuzzle(), 200);
+  }
+});
+</script>
+</body>
+</html>
