@@ -160,7 +160,6 @@
   .slot-grid {
     position: absolute; inset: 0;
     display: grid;
-    pointer-events: none;
   }
   .slot {
     border: 1px dashed rgba(120,120,140,0.35);
@@ -792,18 +791,21 @@ function loadImage(url) {
   imageCache.set(url, p);
   return p;
 }
-// Rewrite Wikipedia URL to a smaller thumbnail size
+// Wikimedia restricts thumbnails to a specific size list (2024+).
+// See: https://www.mediawiki.org/wiki/Common_thumbnail_sizes
+const WIKI_THUMB_SIZES = [120, 250, 330, 500, 960, 1280, 1920, 3840];
 function wikiThumb(url, size) {
   if (!url) return url;
+  const target = WIKI_THUMB_SIZES.find(s => s >= size) || 3840;
   if (url.includes('/thumb/')) {
-    return url.replace(/\/(\d+)px-([^/]+)$/, '/' + size + 'px-$2');
+    return url.replace(/\/(\d+)px-([^/]+)$/, '/' + target + 'px-$2');
   }
   const m = url.match(/\/wikipedia\/commons\/([0-9a-f])\/([0-9a-f]{2})\/([^/]+)$/);
   if (m) {
     const file = m[3];
     const ext = file.split('.').pop().toLowerCase();
     const thumbName = (ext === 'svg') ? (file + '.png') : file;
-    return 'https://upload.wikimedia.org/wikipedia/commons/thumb/' + m[1] + '/' + m[2] + '/' + file + '/' + size + 'px-' + thumbName;
+    return 'https://upload.wikimedia.org/wikipedia/commons/thumb/' + m[1] + '/' + m[2] + '/' + file + '/' + target + 'px-' + thumbName;
   }
   return url;
 }
