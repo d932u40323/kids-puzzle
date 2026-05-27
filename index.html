@@ -931,21 +931,18 @@ function wikiThumb(url, size) {
   }
   return url;
 }
-function drawImageCover(ctx, img, w, h) {
-  const ratio = Math.max(w / img.width, h / img.height);
+function drawImageContain(ctx, img, w, h) {
+  // Show the whole image with letterbox padding — no cropping.
+  const ratio = Math.min(w / img.width, h / img.height);
   const dw = img.width * ratio, dh = img.height * ratio;
-  const dx = (w - dw) / 2;
-  // Portrait images: bias crop toward TOP so subject head/upper body is preserved
-  // (animal heads, rocket tips, etc. usually live at the top of portrait shots).
-  const dy = (img.height > img.width * 1.1) ? 0 : (h - dh) / 2;
-  ctx.drawImage(img, dx, dy, dw, dh);
+  ctx.drawImage(img, (w - dw) / 2, (h - dh) / 2, dw, dh);
 }
 async function paintPuzzleImage(ctx, url, fallbackDraw, w, h, size) {
   ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, w, h);
   if (url) {
     try {
       const img = await loadImage(wikiThumb(url, size));
-      drawImageCover(ctx, img, w, h);
+      drawImageContain(ctx, img, w, h);
       return true;
     } catch (e) {
       // fall through to draw fallback
@@ -1131,8 +1128,8 @@ document.getElementById('back-cat-btn').addEventListener('click', () => {
 });
 
 let currentDataUrl = '';
-let currentBoardSize = 0;
-let currentPieceSize = 0;
+let currentBoardW = 0, currentBoardH = 0;
+let currentPieceW = 0, currentPieceH = 0;
 let currentN = 0;
 let placedCount = 0;
 
@@ -1149,37 +1146,63 @@ async function startPuzzle() {
   const loader = document.getElementById('loader');
   loader.classList.add('show');
 
-  // Generate the source image (async — may fetch a remote photo)
-  const SRC = 800;
-  const c = document.createElement('canvas');
-  c.width = SRC; c.height = SRC;
-  const chosenUrl = puzzle.imgs ? puzzle.imgs[state.variantIdx] : null;
-  await paintPuzzleImage(c.getContext('2d'), chosenUrl, puzzle.draw, SRC, SRC, 960);
-  if (myToken !== puzzleToken) return; // user navigated away or picked another
+  // Load the photo first so we can size the board to its aspect ratio (no cropping)
+  let img = null;
+  const url = puzzle.imgs ? puzzle.imgs[state.variantIdx] : null;
+  if (url) {
+    try { img = await loadImage(wikiThumb(url, 960)); } catch (e) {}
+  }
+  if (myToken !== puzzleToken) return;
 
+  // Source canvas matches the image aspect ratio (no cropping happens).
+  // Fallback (colors etc.) uses a square 800x800 canvas with the draw function.
+  let srcW, srcH;
+  if (img) {
+    const ar = img.width / img.height;
+    if (ar >= 1) { srcW = 960; srcH = Math.round(960 / ar); }
+    else { srcH = 960; srcW = Math.round(960 * ar); }
+  } else {
+    srcW = srcH = 800;
+  }
+
+  const c = document.createElement('canvas');
+  c.width = srcW; c.height = srcH;
+  const ctx = c.getContext('2d');
+  ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, srcW, srcH);
+  if (img) ctx.drawImage(img, 0, 0, srcW, srcH);
+  else if (puzzle.draw) puzzle.draw(ctx, srcW, srcH);
   currentDataUrl = c.toDataURL();
   loader.classList.remove('show');
 
-  // Determine display size
+  // Display board: scale source to fit screen while keeping aspect ratio
   const vw = window.innerWidth;
   const vh = window.innerHeight;
-  // Reserve space: topbar ~60, win-board margin ~20, tray min 240
   const maxByH = vh - 60 - 20 - 240 - 30;
   const maxByW = vw - 40;
-  currentBoardSize = Math.max(180, Math.min(maxByW, maxByH, 480));
+  let scale = Math.min(maxByW / srcW, maxByH / srcH);
+  // Cap so the board doesn't get huge on desktop
+  const cap = 500;
+  if (Math.max(srcW, srcH) * scale > cap) scale = cap / Math.max(srcW, srcH);
+  // Floor scale so the board is never absurdly tiny
+  const minSide = 180;
+  if (Math.min(srcW, srcH) * scale < minSide) scale = minSide / Math.min(srcW, srcH);
+
+  currentBoardW = Math.round(srcW * scale);
+  currentBoardH = Math.round(srcH * scale);
   currentN = state.difficulty;
-  currentPieceSize = currentBoardSize / currentN;
+  currentPieceW = currentBoardW / currentN;
+  currentPieceH = currentBoardH / currentN;
   placedCount = 0;
 
   // Board
   const board = document.getElementById('board');
-  board.style.width = board.style.height = currentBoardSize + 'px';
+  board.style.width = currentBoardW + 'px';
+  board.style.height = currentBoardH + 'px';
   board.style.backgroundImage = `url(${currentDataUrl})`;
-  board.style.backgroundSize = currentBoardSize + 'px ' + currentBoardSize + 'px';
-  // Remove any placed pieces from previous round
+  board.style.backgroundSize = currentBoardW + 'px ' + currentBoardH + 'px';
   board.querySelectorAll('.placed-piece').forEach(el => el.remove());
 
-  // Slot grid for highlighting
+  // Slot grid
   const slotGrid = document.getElementById('slot-grid');
   slotGrid.innerHTML = '';
   slotGrid.style.gridTemplateColumns = `repeat(${currentN}, 1fr)`;
@@ -1193,27 +1216,27 @@ async function startPuzzle() {
     }
   }
 
-  // Tray
+  // Tray pieces
   const tray = document.getElementById('tray');
   tray.innerHTML = '';
-  // Build pieces
   const pieceList = [];
   for (let y = 0; y < currentN; y++) {
     for (let x = 0; x < currentN; x++) pieceList.push({ x, y });
   }
   pieceList.sort(() => Math.random() - 0.5);
 
-  // Wait one frame for tray to have size
   requestAnimationFrame(() => {
     const trayRect = tray.getBoundingClientRect();
-    const positions = scatterPositions(pieceList.length, trayRect.width, trayRect.height, currentPieceSize);
+    const spacing = Math.max(currentPieceW, currentPieceH);
+    const positions = scatterPositions(pieceList.length, trayRect.width, trayRect.height, spacing);
     pieceList.forEach((p, i) => {
       const el = document.createElement('div');
       el.className = 'piece';
-      el.style.width = el.style.height = currentPieceSize + 'px';
+      el.style.width = currentPieceW + 'px';
+      el.style.height = currentPieceH + 'px';
       el.style.backgroundImage = `url(${currentDataUrl})`;
-      el.style.backgroundSize = currentBoardSize + 'px ' + currentBoardSize + 'px';
-      el.style.backgroundPosition = `${-p.x * currentPieceSize}px ${-p.y * currentPieceSize}px`;
+      el.style.backgroundSize = currentBoardW + 'px ' + currentBoardH + 'px';
+      el.style.backgroundPosition = `${-p.x * currentPieceW}px ${-p.y * currentPieceH}px`;
       el.dataset.x = p.x; el.dataset.y = p.y;
       el.style.left = positions[i].x + 'px';
       el.style.top = positions[i].y + 'px';
@@ -1335,16 +1358,16 @@ function returnPiece(piece) {
 
 function acceptDrop(piece, slot) {
   soundSnap();
-  // Create a placed piece on the board at the exact slot location
   const board = document.getElementById('board');
   const placed = document.createElement('div');
   placed.className = 'placed-piece';
-  placed.style.width = placed.style.height = currentPieceSize + 'px';
-  placed.style.left = (parseInt(piece.dataset.x) * currentPieceSize) + 'px';
-  placed.style.top = (parseInt(piece.dataset.y) * currentPieceSize) + 'px';
+  placed.style.width = currentPieceW + 'px';
+  placed.style.height = currentPieceH + 'px';
+  placed.style.left = (parseInt(piece.dataset.x) * currentPieceW) + 'px';
+  placed.style.top = (parseInt(piece.dataset.y) * currentPieceH) + 'px';
   placed.style.backgroundImage = `url(${currentDataUrl})`;
-  placed.style.backgroundSize = currentBoardSize + 'px ' + currentBoardSize + 'px';
-  placed.style.backgroundPosition = `${-parseInt(piece.dataset.x) * currentPieceSize}px ${-parseInt(piece.dataset.y) * currentPieceSize}px`;
+  placed.style.backgroundSize = currentBoardW + 'px ' + currentBoardH + 'px';
+  placed.style.backgroundPosition = `${-parseInt(piece.dataset.x) * currentPieceW}px ${-parseInt(piece.dataset.y) * currentPieceH}px`;
   board.appendChild(placed);
   spawnSparkles(slot);
   piece.remove();
