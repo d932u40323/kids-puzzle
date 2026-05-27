@@ -129,6 +129,18 @@
     font-size: clamp(14px, 3.5vw, 18px);
     font-weight: bold; color: #4a4a6a;
   }
+  .puzzle-card { position: relative; }
+  .variant-badge {
+    position: absolute;
+    top: 4px; right: 4px;
+    background: #ff7ab6; color: white;
+    font-size: 12px; font-weight: bold;
+    padding: 4px 8px;
+    border-radius: 999px;
+    box-shadow: 0 2px 0 rgba(0,0,0,0.15);
+    pointer-events: none;
+  }
+  #variant-grid { grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); }
 
   /* ----- Play screen ----- */
   #screen-play { padding: 10px; }
@@ -316,6 +328,16 @@
     <button class="diff-btn" data-d="4">挑戰 4×4</button>
   </div>
   <div class="puzzle-grid" id="puzzle-grid"></div>
+</div>
+
+<!-- Screen 2.5: Variant picker (which photo of this topic) -->
+<div class="screen" id="screen-variant" hidden>
+  <div class="topbar">
+    <button class="back-btn" id="back-to-picker-from-variant">← 返回</button>
+    <h2 id="variant-title">選一張照片</h2>
+    <div class="spacer"></div>
+  </div>
+  <div class="puzzle-grid" id="variant-grid"></div>
 </div>
 
 <!-- Screen 3: Play -->
@@ -730,41 +752,141 @@ function drawColorPink(ctx, w, h) {
   emoji(ctx, '💗', w*0.72, h*0.74, h*0.26);
 }
 
-// Wikipedia/Wikimedia Commons photos for richer visuals.
-// `img` = full image URL (we shrink via wikiThumb); `draw` = offline fallback.
+// Wikipedia/Wikimedia Commons photos. Each topic has multiple variants
+// so kids can pick which photo to play. `draw` is the offline fallback.
 const PUZZLES = {
   animals: [
-    { name: '老虎', img: 'https://upload.wikimedia.org/wikipedia/commons/thumb/b/b0/Bengal_tiger_%28Panthera_tigris_tigris%29_female_3_crop.jpg/3840px-Bengal_tiger_%28Panthera_tigris_tigris%29_female_3_crop.jpg', draw: drawTiger },
-    { name: '大象', img: 'https://upload.wikimedia.org/wikipedia/commons/3/37/African_Bush_Elephant.jpg', draw: drawElephant },
-    { name: '熊貓', img: 'https://upload.wikimedia.org/wikipedia/commons/thumb/0/0f/Grosser_Panda.JPG/3840px-Grosser_Panda.JPG', draw: drawPanda },
-    { name: '長頸鹿', img: 'https://upload.wikimedia.org/wikipedia/commons/9/9e/Giraffe_Mikumi_National_Park.jpg', draw: drawGiraffe },
-    { name: '獅子', img: 'https://upload.wikimedia.org/wikipedia/commons/thumb/a/a6/020_The_lion_king_Snyggve_in_the_Serengeti_National_Park_Photo_by_Giles_Laurent.jpg/3840px-020_The_lion_king_Snyggve_in_the_Serengeti_National_Park_Photo_by_Giles_Laurent.jpg', draw: drawLion },
-    { name: '企鵝', img: 'https://upload.wikimedia.org/wikipedia/commons/a/a3/Aptenodytes_forsteri_-Snow_Hill_Island%2C_Antarctica_-adults_and_juvenile-8.jpg', draw: drawPenguin },
+    { name: '老虎', imgs: [
+      'https://upload.wikimedia.org/wikipedia/commons/thumb/b/b0/Bengal_tiger_%28Panthera_tigris_tigris%29_female_3_crop.jpg/500px-Bengal_tiger_%28Panthera_tigris_tigris%29_female_3_crop.jpg',
+      'https://upload.wikimedia.org/wikipedia/commons/thumb/6/66/Adult_male_Royal_Bengal_tiger.jpg/500px-Adult_male_Royal_Bengal_tiger.jpg',
+      'https://upload.wikimedia.org/wikipedia/commons/thumb/b/b9/P.t.altaica_Tomak_Male.jpg/500px-P.t.altaica_Tomak_Male.jpg',
+    ], draw: drawTiger },
+    { name: '大象', imgs: [
+      'https://upload.wikimedia.org/wikipedia/commons/3/37/African_Bush_Elephant.jpg',
+      'https://upload.wikimedia.org/wikipedia/commons/thumb/b/bf/African_Elephant_%28Loxodonta_africana%29_male_%2817289351322%29.jpg/500px-African_Elephant_%28Loxodonta_africana%29_male_%2817289351322%29.jpg',
+      'https://upload.wikimedia.org/wikipedia/commons/thumb/9/98/Elephas_maximus_%28Bandipur%29.jpg/500px-Elephas_maximus_%28Bandipur%29.jpg',
+    ], draw: drawElephant },
+    { name: '熊貓', imgs: [
+      'https://upload.wikimedia.org/wikipedia/commons/thumb/0/0f/Grosser_Panda.JPG/500px-Grosser_Panda.JPG',
+      'https://upload.wikimedia.org/wikipedia/commons/thumb/6/67/Giant_Pandas_having_a_snack.jpg/500px-Giant_Pandas_having_a_snack.jpg',
+      'https://upload.wikimedia.org/wikipedia/commons/thumb/9/96/Chengdu-pandas-d18.jpg/500px-Chengdu-pandas-d18.jpg',
+    ], draw: drawPanda },
+    { name: '長頸鹿', imgs: [
+      'https://upload.wikimedia.org/wikipedia/commons/9/9e/Giraffe_Mikumi_National_Park.jpg',
+      'https://upload.wikimedia.org/wikipedia/commons/thumb/9/9f/Giraffe_standing.jpg/500px-Giraffe_standing.jpg',
+      'https://upload.wikimedia.org/wikipedia/commons/thumb/d/d2/Giraffe_feeding%2C_Tanzania.jpg/500px-Giraffe_feeding%2C_Tanzania.jpg',
+    ], draw: drawGiraffe },
+    { name: '獅子', imgs: [
+      'https://upload.wikimedia.org/wikipedia/commons/thumb/a/a6/020_The_lion_king_Snyggve_in_the_Serengeti_National_Park_Photo_by_Giles_Laurent.jpg/500px-020_The_lion_king_Snyggve_in_the_Serengeti_National_Park_Photo_by_Giles_Laurent.jpg',
+      'https://upload.wikimedia.org/wikipedia/commons/thumb/c/c6/Okonjima_Lioness.jpg/500px-Okonjima_Lioness.jpg',
+      'https://upload.wikimedia.org/wikipedia/commons/thumb/d/da/Lioness_12.jpg/500px-Lioness_12.jpg',
+    ], draw: drawLion },
+    { name: '企鵝', imgs: [
+      'https://upload.wikimedia.org/wikipedia/commons/a/a3/Aptenodytes_forsteri_-Snow_Hill_Island%2C_Antarctica_-adults_and_juvenile-8.jpg',
+      'https://upload.wikimedia.org/wikipedia/commons/thumb/6/63/African_penguin_side_profile.jpg/500px-African_penguin_side_profile.jpg',
+      'https://upload.wikimedia.org/wikipedia/commons/thumb/3/3f/Falkland_Islands_Penguins_70.jpg/500px-Falkland_Islands_Penguins_70.jpg',
+    ], draw: drawPenguin },
   ],
   vehicles: [
-    { name: '汽車', img: 'https://upload.wikimedia.org/wikipedia/commons/thumb/1/12/1925_Ford_Model_T_touring.jpg/3840px-1925_Ford_Model_T_touring.jpg', draw: drawCar },
-    { name: '消防車', img: 'https://upload.wikimedia.org/wikipedia/commons/thumb/d/d0/Dublin_Fire_Brigade_Pump_Ladder_D32.jpg/3840px-Dublin_Fire_Brigade_Pump_Ladder_D32.jpg', draw: drawFireTruck },
-    { name: '火車', img: 'https://upload.wikimedia.org/wikipedia/commons/thumb/5/5a/Number_4468_Mallard_in_York.jpg/3840px-Number_4468_Mallard_in_York.jpg', draw: drawTrain },
-    { name: '飛機', img: 'https://upload.wikimedia.org/wikipedia/commons/thumb/8/83/United_A320_N405UA_at_BOS_%2833787222465%29.jpg/3840px-United_A320_N405UA_at_BOS_%2833787222465%29.jpg', draw: drawPlane },
-    { name: '帆船', img: 'https://upload.wikimedia.org/wikipedia/commons/thumb/f/fb/Sloop_Example.svg/500px-Sloop_Example.svg.png', draw: drawBoat },
-    { name: '火箭', img: 'https://upload.wikimedia.org/wikipedia/commons/9/9a/Soyuz_TMA-9_launch.jpg', draw: drawRocket },
+    { name: '汽車', imgs: [
+      'https://upload.wikimedia.org/wikipedia/commons/thumb/1/12/1925_Ford_Model_T_touring.jpg/500px-1925_Ford_Model_T_touring.jpg',
+      'https://upload.wikimedia.org/wikipedia/commons/thumb/d/d0/Benz_Patent-Motorwagen_Nr_2.jpg/500px-Benz_Patent-Motorwagen_Nr_2.jpg',
+      'https://upload.wikimedia.org/wikipedia/commons/thumb/6/6c/1966_Toyota_Corolla_02.jpg/500px-1966_Toyota_Corolla_02.jpg',
+    ], draw: drawCar },
+    { name: '消防車', imgs: [
+      'https://upload.wikimedia.org/wikipedia/commons/thumb/d/d0/Dublin_Fire_Brigade_Pump_Ladder_D32.jpg/500px-Dublin_Fire_Brigade_Pump_Ladder_D32.jpg',
+      'https://upload.wikimedia.org/wikipedia/commons/thumb/2/2f/Humberside_Fire_%26_Rescue_DH03P4_-_YT21_EHF.jpg/500px-Humberside_Fire_%26_Rescue_DH03P4_-_YT21_EHF.jpg',
+      'https://upload.wikimedia.org/wikipedia/commons/thumb/f/fb/Fire_engine%2C_Loveland%2C_Colorado%2Cjpg.jpg/500px-Fire_engine%2C_Loveland%2C_Colorado%2Cjpg.jpg',
+    ], draw: drawFireTruck },
+    { name: '火車', imgs: [
+      'https://upload.wikimedia.org/wikipedia/commons/thumb/5/5a/Number_4468_Mallard_in_York.jpg/500px-Number_4468_Mallard_in_York.jpg',
+      'https://upload.wikimedia.org/wikipedia/commons/thumb/3/39/Flying_Scotsman_in_Doncaster.JPG/500px-Flying_Scotsman_in_Doncaster.JPG',
+      'https://upload.wikimedia.org/wikipedia/commons/thumb/b/b2/UP_4014_Departs_Denver%2C_CO_At_York_Street.jpg/500px-UP_4014_Departs_Denver%2C_CO_At_York_Street.jpg',
+    ], draw: drawTrain },
+    { name: '飛機', imgs: [
+      'https://upload.wikimedia.org/wikipedia/commons/thumb/8/83/United_A320_N405UA_at_BOS_%2833787222465%29.jpg/500px-United_A320_N405UA_at_BOS_%2833787222465%29.jpg',
+      'https://upload.wikimedia.org/wikipedia/commons/thumb/e/e2/Douglas_C-47A_Skytrain_%28DC-3%29%2C_KLM_-_Royal_Dutch_Airlines_%28DDA_Classic_Airlines%29_AN2107554.jpg/500px-Douglas_C-47A_Skytrain_%28DC-3%29%2C_KLM_-_Royal_Dutch_Airlines_%28DDA_Classic_Airlines%29_AN2107554.jpg',
+      'https://upload.wikimedia.org/wikipedia/commons/thumb/5/54/Boeing_747_rollout_%283%29.jpg/500px-Boeing_747_rollout_%283%29.jpg',
+    ], draw: drawPlane },
+    { name: '帆船', imgs: [
+      'https://upload.wikimedia.org/wikipedia/commons/thumb/7/73/Regattafeld_vor_Laboe.jpg/500px-Regattafeld_vor_Laboe.jpg',
+      'https://upload.wikimedia.org/wikipedia/commons/thumb/7/73/Sailing_yacht_anchored_in_Duck_Harbor_Maine_July_2012.jpg/500px-Sailing_yacht_anchored_in_Duck_Harbor_Maine_July_2012.jpg',
+      'https://upload.wikimedia.org/wikipedia/commons/thumb/5/56/SantaMaria.jpg/500px-SantaMaria.jpg',
+    ], draw: drawBoat },
+    { name: '火箭', imgs: [
+      'https://upload.wikimedia.org/wikipedia/commons/thumb/1/16/Apollo_11_Launch_-_GPN-2000-000630.jpg/500px-Apollo_11_Launch_-_GPN-2000-000630.jpg',
+      'https://upload.wikimedia.org/wikipedia/commons/9/9a/Soyuz_TMA-9_launch.jpg',
+      'https://upload.wikimedia.org/wikipedia/commons/thumb/a/ac/Apollo_11_launch.jpg/500px-Apollo_11_launch.jpg',
+    ], draw: drawRocket },
   ],
   scenery: [
-    { name: '富士山', img: 'https://upload.wikimedia.org/wikipedia/commons/thumb/f/f8/View_of_Mount_Fuji_from_%C5%8Cwakudani_20211202.jpg/3840px-View_of_Mount_Fuji_from_%C5%8Cwakudani_20211202.jpg', draw: drawMountainScene },
-    { name: '海邊', img: 'https://upload.wikimedia.org/wikipedia/commons/7/73/Beach_at_Fort_Lauderdale.jpg', draw: drawBeach },
-    { name: '城市夜景', img: 'https://upload.wikimedia.org/wikipedia/commons/thumb/3/3d/Broadway_%289075158922%29.jpg/3840px-Broadway_%289075158922%29.jpg', draw: drawCity },
-    { name: '森林', img: 'https://upload.wikimedia.org/wikipedia/commons/d/d0/Aerial_view_of_the_Amazon_Rainforest.jpg', draw: drawForest },
-    { name: '彩虹', img: 'https://upload.wikimedia.org/wikipedia/commons/5/5c/Double-alaskan-rainbow.jpg', draw: drawRainbow },
+    { name: '富士山', imgs: [
+      'https://upload.wikimedia.org/wikipedia/commons/thumb/f/f8/View_of_Mount_Fuji_from_%C5%8Cwakudani_20211202.jpg/500px-View_of_Mount_Fuji_from_%C5%8Cwakudani_20211202.jpg',
+      'https://upload.wikimedia.org/wikipedia/commons/thumb/5/51/Aerial_panorama_of_Mount_Fuji_from_Lake_Saiko._June_2023.jpg/500px-Aerial_panorama_of_Mount_Fuji_from_Lake_Saiko._June_2023.jpg',
+      'https://upload.wikimedia.org/wikipedia/commons/thumb/d/d3/Mount_Ashiwada_and_Mount_Fuji.jpg/500px-Mount_Ashiwada_and_Mount_Fuji.jpg',
+    ], draw: drawMountainScene },
+    { name: '海邊', imgs: [
+      'https://upload.wikimedia.org/wikipedia/commons/7/73/Beach_at_Fort_Lauderdale.jpg',
+      'https://upload.wikimedia.org/wikipedia/commons/thumb/8/86/Man_o%27war_cove_near_lulworth_dorset_arp.jpg/500px-Man_o%27war_cove_near_lulworth_dorset_arp.jpg',
+      'https://upload.wikimedia.org/wikipedia/commons/thumb/d/d4/Scala_dei_Turchi_Sand_062313.jpg/500px-Scala_dei_Turchi_Sand_062313.jpg',
+    ], draw: drawBeach },
+    { name: '城市夜景', imgs: [
+      'https://upload.wikimedia.org/wikipedia/commons/thumb/3/3d/Burj_Khalifa_Night_View_01.jpg/500px-Burj_Khalifa_Night_View_01.jpg',
+      'https://upload.wikimedia.org/wikipedia/commons/thumb/8/8d/Hong_Kong_skyscrapers_in_a_night_of_typhoon.jpg/500px-Hong_Kong_skyscrapers_in_a_night_of_typhoon.jpg',
+      'https://upload.wikimedia.org/wikipedia/commons/thumb/3/38/Lower_Manhattan_from_Governors_Island_with_a_fishing_boat_%2846294p%29.jpg/500px-Lower_Manhattan_from_Governors_Island_with_a_fishing_boat_%2846294p%29.jpg',
+    ], draw: drawCity },
+    { name: '森林', imgs: [
+      'https://upload.wikimedia.org/wikipedia/commons/d/d0/Aerial_view_of_the_Amazon_Rainforest.jpg',
+      'https://upload.wikimedia.org/wikipedia/commons/thumb/9/91/Spring_forest_Yyteri_3.jpg/500px-Spring_forest_Yyteri_3.jpg',
+      'https://upload.wikimedia.org/wikipedia/commons/thumb/c/cb/Hellyer_Gorge%2C_Tasmania.jpg/500px-Hellyer_Gorge%2C_Tasmania.jpg',
+    ], draw: drawForest },
+    { name: '彩虹', imgs: [
+      'https://upload.wikimedia.org/wikipedia/commons/5/5c/Double-alaskan-rainbow.jpg',
+      'https://upload.wikimedia.org/wikipedia/commons/thumb/e/eb/PikiWiki_Israel_41259_Israeli_Rainbow.jpg/500px-PikiWiki_Israel_41259_Israeli_Rainbow.jpg',
+      'https://upload.wikimedia.org/wikipedia/commons/thumb/6/67/Regenbogen_%C3%BCber_dem_Lipno-Stausee.JPG/500px-Regenbogen_%C3%BCber_dem_Lipno-Stausee.JPG',
+    ], draw: drawRainbow },
   ],
   fruits: [
-    { name: '蘋果', img: 'https://upload.wikimedia.org/wikipedia/commons/a/a6/Pink_lady_and_cross_section.jpg', draw: drawApple },
-    { name: '香蕉', img: 'https://upload.wikimedia.org/wikipedia/commons/d/de/Bananavarieties.jpg', draw: drawBanana },
-    { name: '草莓', img: 'https://upload.wikimedia.org/wikipedia/commons/thumb/4/4c/Garden_strawberry_%28Fragaria_%C3%97_ananassa%29_single2.jpg/3840px-Garden_strawberry_%28Fragaria_%C3%97_ananassa%29_single2.jpg', draw: drawStrawberry },
-    { name: '西瓜', img: 'https://upload.wikimedia.org/wikipedia/commons/4/47/Taiwan_2009_Tainan_City_Organic_Farm_Watermelon_FRD_7962.jpg', draw: drawWatermelon },
-    { name: '胡蘿蔔', img: 'https://upload.wikimedia.org/wikipedia/commons/thumb/a/a2/Vegetable-Carrot-Bundle-wStalks.jpg/3840px-Vegetable-Carrot-Bundle-wStalks.jpg', draw: drawCarrot },
-    { name: '玉米', img: 'https://upload.wikimedia.org/wikipedia/commons/7/79/VegCorn.jpg', draw: drawCorn },
-    { name: '葡萄', img: 'https://upload.wikimedia.org/wikipedia/commons/thumb/5/53/Grapes%2C_Rostov-on-Don%2C_Russia.jpg/3840px-Grapes%2C_Rostov-on-Don%2C_Russia.jpg', draw: drawGrapes },
-    { name: '番茄', img: 'https://upload.wikimedia.org/wikipedia/commons/8/89/Tomato_je.jpg', draw: drawTomato },
+    { name: '蘋果', imgs: [
+      'https://upload.wikimedia.org/wikipedia/commons/a/a6/Pink_lady_and_cross_section.jpg',
+      'https://upload.wikimedia.org/wikipedia/commons/thumb/9/92/95apple.jpeg/500px-95apple.jpeg',
+      'https://upload.wikimedia.org/wikipedia/commons/thumb/d/de/Rome_Apples%2C_Newark_Delaware_Farmer%27s_Market.jpg/500px-Rome_Apples%2C_Newark_Delaware_Farmer%27s_Market.jpg',
+    ], draw: drawApple },
+    { name: '香蕉', imgs: [
+      'https://upload.wikimedia.org/wikipedia/commons/d/de/Bananavarieties.jpg',
+      'https://upload.wikimedia.org/wikipedia/commons/thumb/4/4c/Bananas.jpg/500px-Bananas.jpg',
+      'https://upload.wikimedia.org/wikipedia/commons/thumb/6/66/Banana_Plantation_Panabo_City.jpg/500px-Banana_Plantation_Panabo_City.jpg',
+    ], draw: drawBanana },
+    { name: '草莓', imgs: [
+      'https://upload.wikimedia.org/wikipedia/commons/thumb/4/4c/Garden_strawberry_%28Fragaria_%C3%97_ananassa%29_single2.jpg/500px-Garden_strawberry_%28Fragaria_%C3%97_ananassa%29_single2.jpg',
+      'https://upload.wikimedia.org/wikipedia/commons/thumb/0/0c/Fruits_of_Fragaria_%C3%97_ananassa.JPG/500px-Fruits_of_Fragaria_%C3%97_ananassa.JPG',
+      'https://upload.wikimedia.org/wikipedia/commons/thumb/e/ea/Garden_strawberry_%28Fragaria_%C3%97_ananassa%29.jpg/500px-Garden_strawberry_%28Fragaria_%C3%97_ananassa%29.jpg',
+    ], draw: drawStrawberry },
+    { name: '西瓜', imgs: [
+      'https://upload.wikimedia.org/wikipedia/commons/4/47/Taiwan_2009_Tainan_City_Organic_Farm_Watermelon_FRD_7962.jpg',
+      'https://upload.wikimedia.org/wikipedia/commons/thumb/a/ae/Watermelon_cross_BNC.jpg/500px-Watermelon_cross_BNC.jpg',
+      'https://upload.wikimedia.org/wikipedia/commons/thumb/c/cc/Watermelon_seedless.jpg/500px-Watermelon_seedless.jpg',
+    ], draw: drawWatermelon },
+    { name: '胡蘿蔔', imgs: [
+      'https://upload.wikimedia.org/wikipedia/commons/thumb/a/a2/Vegetable-Carrot-Bundle-wStalks.jpg/500px-Vegetable-Carrot-Bundle-wStalks.jpg',
+      'https://upload.wikimedia.org/wikipedia/commons/thumb/0/0a/Harvesting_carrots.jpg/500px-Harvesting_carrots.jpg',
+      'https://upload.wikimedia.org/wikipedia/commons/thumb/3/32/Carrots_of_many_colors.jpg/500px-Carrots_of_many_colors.jpg',
+    ], draw: drawCarrot },
+    { name: '玉米', imgs: [
+      'https://upload.wikimedia.org/wikipedia/commons/7/79/VegCorn.jpg',
+      'https://upload.wikimedia.org/wikipedia/commons/thumb/4/4e/GreenCorn.JPG/500px-GreenCorn.JPG',
+      'https://upload.wikimedia.org/wikipedia/commons/thumb/6/65/ZeaMays.jpg/500px-ZeaMays.jpg',
+    ], draw: drawCorn },
+    { name: '葡萄', imgs: [
+      'https://upload.wikimedia.org/wikipedia/commons/thumb/5/53/Grapes%2C_Rostov-on-Don%2C_Russia.jpg/500px-Grapes%2C_Rostov-on-Don%2C_Russia.jpg',
+      'https://upload.wikimedia.org/wikipedia/commons/thumb/d/df/ConcordGrapes.jpg/500px-ConcordGrapes.jpg',
+      'https://upload.wikimedia.org/wikipedia/commons/thumb/5/5e/Wine_grapes03.jpg/500px-Wine_grapes03.jpg',
+    ], draw: drawGrapes },
+    { name: '番茄', imgs: [
+      'https://upload.wikimedia.org/wikipedia/commons/8/89/Tomato_je.jpg',
+      'https://upload.wikimedia.org/wikipedia/commons/thumb/5/5e/TomateSanMarzano.jpg/500px-TomateSanMarzano.jpg',
+      'https://upload.wikimedia.org/wikipedia/commons/thumb/8/88/Tomatoes_for_sale_in_a_UK_supermarket_2013.jpg/500px-Tomatoes_for_sale_in_a_UK_supermarket_2013.jpg',
+    ], draw: drawTomato },
   ],
   colors: [
     { name: '紅色', draw: drawColorRed },
@@ -814,18 +936,18 @@ function drawImageCover(ctx, img, w, h) {
   const dw = img.width * ratio, dh = img.height * ratio;
   ctx.drawImage(img, (w - dw) / 2, (h - dh) / 2, dw, dh);
 }
-async function paintPuzzleImage(ctx, puzzle, w, h, size) {
+async function paintPuzzleImage(ctx, url, fallbackDraw, w, h, size) {
   ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, w, h);
-  if (puzzle.img) {
+  if (url) {
     try {
-      const img = await loadImage(wikiThumb(puzzle.img, size));
+      const img = await loadImage(wikiThumb(url, size));
       drawImageCover(ctx, img, w, h);
       return true;
     } catch (e) {
       // fall through to draw fallback
     }
   }
-  if (puzzle.draw) puzzle.draw(ctx, w, h);
+  if (fallbackDraw) fallbackDraw(ctx, w, h);
   return false;
 }
 
@@ -871,13 +993,14 @@ document.addEventListener('pointerdown', ensureAudio, { once: true });
 const screens = {
   category: document.getElementById('screen-category'),
   picker: document.getElementById('screen-picker'),
+  variant: document.getElementById('screen-variant'),
   play: document.getElementById('screen-play'),
 };
 function showScreen(name) {
   Object.entries(screens).forEach(([k, el]) => el.hidden = (k !== name));
 }
 
-const state = { category: null, puzzleIdx: 0, difficulty: 3 };
+const state = { category: null, puzzleIdx: 0, variantIdx: 0, difficulty: 3 };
 
 /* ----- Category screen ----- */
 document.querySelectorAll('.cat-tile').forEach(btn => {
@@ -901,6 +1024,18 @@ document.querySelectorAll('.diff-btn').forEach(btn => {
   });
 });
 
+function paintThumbnail(ctx, url, fallback, size) {
+  // placeholder
+  const g = ctx.createLinearGradient(0,0,0,size);
+  g.addColorStop(0, '#f5f5fa'); g.addColorStop(1, '#e0e0ec');
+  ctx.fillStyle = g; ctx.fillRect(0,0,size,size);
+  ctx.fillStyle = '#bbb';
+  ctx.font = 'bold 18px sans-serif';
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillText('載入中…', size/2, size/2);
+  paintPuzzleImage(ctx, url, fallback, size, size, 330);
+}
+
 function buildPicker() {
   document.getElementById('picker-title').textContent = `選一張${CAT_LABEL[state.category]}拼圖`;
   const grid = document.getElementById('puzzle-grid');
@@ -910,16 +1045,14 @@ function buildPicker() {
     card.className = 'puzzle-card';
     const canvas = document.createElement('canvas');
     canvas.width = 240; canvas.height = 240;
-    const ctx = canvas.getContext('2d');
-    // Soft placeholder while loading
-    const g = ctx.createLinearGradient(0,0,0,240);
-    g.addColorStop(0, '#f5f5fa'); g.addColorStop(1, '#e0e0ec');
-    ctx.fillStyle = g; ctx.fillRect(0,0,240,240);
-    ctx.fillStyle = '#bbb';
-    ctx.font = 'bold 18px sans-serif';
-    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-    ctx.fillText('載入中…', 120, 120);
-    paintPuzzleImage(ctx, p, 240, 240, 320);
+    paintThumbnail(canvas.getContext('2d'), p.imgs?.[0], p.draw, 240);
+
+    if (p.imgs && p.imgs.length > 1) {
+      const badge = document.createElement('div');
+      badge.className = 'variant-badge';
+      badge.textContent = p.imgs.length + ' 張可選';
+      card.appendChild(badge);
+    }
 
     const label = document.createElement('div');
     label.className = 'label'; label.textContent = p.name;
@@ -927,6 +1060,37 @@ function buildPicker() {
     card.addEventListener('click', () => {
       soundClick();
       state.puzzleIdx = idx;
+      if (p.imgs && p.imgs.length > 1) {
+        buildVariantPicker();
+        showScreen('variant');
+      } else {
+        state.variantIdx = 0;
+        startPuzzle();
+        showScreen('play');
+      }
+    });
+    grid.appendChild(card);
+  });
+}
+
+function buildVariantPicker() {
+  const puzzle = PUZZLES[state.category][state.puzzleIdx];
+  document.getElementById('variant-title').textContent = `選一張${puzzle.name}的照片`;
+  const grid = document.getElementById('variant-grid');
+  grid.innerHTML = '';
+  (puzzle.imgs || []).forEach((url, idx) => {
+    const card = document.createElement('div');
+    card.className = 'puzzle-card variant-card';
+    const canvas = document.createElement('canvas');
+    canvas.width = 280; canvas.height = 280;
+    paintThumbnail(canvas.getContext('2d'), url, puzzle.draw, 280);
+
+    const label = document.createElement('div');
+    label.className = 'label'; label.textContent = `第 ${idx + 1} 張`;
+    card.appendChild(canvas); card.appendChild(label);
+    card.addEventListener('click', () => {
+      soundClick();
+      state.variantIdx = idx;
       startPuzzle();
       showScreen('play');
     });
@@ -936,10 +1100,27 @@ function buildPicker() {
 
 /* ----- Play screen ----- */
 document.getElementById('back-to-picker').addEventListener('click', () => {
+  soundClick();
+  const puzzle = PUZZLES[state.category][state.puzzleIdx];
+  if (puzzle && puzzle.imgs && puzzle.imgs.length > 1) {
+    buildVariantPicker();
+    showScreen('variant');
+  } else {
+    showScreen('picker');
+  }
+});
+document.getElementById('back-to-picker-from-variant').addEventListener('click', () => {
   soundClick(); showScreen('picker');
 });
 document.getElementById('play-again-btn').addEventListener('click', () => {
-  soundClick(); showScreen('picker');
+  soundClick();
+  const puzzle = PUZZLES[state.category][state.puzzleIdx];
+  if (puzzle && puzzle.imgs && puzzle.imgs.length > 1) {
+    buildVariantPicker();
+    showScreen('variant');
+  } else {
+    showScreen('picker');
+  }
 });
 document.getElementById('back-cat-btn').addEventListener('click', () => {
   soundClick(); showScreen('category');
@@ -968,7 +1149,8 @@ async function startPuzzle() {
   const SRC = 800;
   const c = document.createElement('canvas');
   c.width = SRC; c.height = SRC;
-  await paintPuzzleImage(c.getContext('2d'), puzzle, SRC, SRC, 800);
+  const chosenUrl = puzzle.imgs ? puzzle.imgs[state.variantIdx] : null;
+  await paintPuzzleImage(c.getContext('2d'), chosenUrl, puzzle.draw, SRC, SRC, 960);
   if (myToken !== puzzleToken) return; // user navigated away or picked another
 
   currentDataUrl = c.toDataURL();
