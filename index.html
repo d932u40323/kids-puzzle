@@ -1194,6 +1194,25 @@ async function startPuzzle() {
   currentPieceH = currentBoardH / currentN;
   placedCount = 0;
 
+  // Shrink the board further if N² pieces won't fit in the tray below it.
+  // Without this, at 4×4 on narrow screens some pieces fall outside the
+  // visible tray and the puzzle becomes uncompletable.
+  {
+    const trayW = vw - 30;
+    const spacing = 6;
+    for (let iter = 0; iter < 12; iter++) {
+      const trayAvailH = vh - 60 - 20 - currentBoardH - 30 - 20;
+      const cols = Math.max(1, Math.floor((trayW + spacing) / (currentPieceW + spacing)));
+      const rows = Math.ceil((currentN * currentN) / cols);
+      const trayNeedH = rows * (currentPieceH + spacing) + spacing;
+      if (trayNeedH <= trayAvailH || currentBoardH < 150) break;
+      currentBoardW = Math.round(currentBoardW * 0.92);
+      currentBoardH = Math.round(currentBoardH * 0.92);
+      currentPieceW = currentBoardW / currentN;
+      currentPieceH = currentBoardH / currentN;
+    }
+  }
+
   // Board
   const board = document.getElementById('board');
   board.style.width = currentBoardW + 'px';
@@ -1227,8 +1246,7 @@ async function startPuzzle() {
 
   requestAnimationFrame(() => {
     const trayRect = tray.getBoundingClientRect();
-    const spacing = Math.max(currentPieceW, currentPieceH);
-    const positions = scatterPositions(pieceList.length, trayRect.width, trayRect.height, spacing);
+    const positions = scatterPositions(pieceList.length, trayRect.width, trayRect.height, currentPieceW, currentPieceH);
     pieceList.forEach((p, i) => {
       const el = document.createElement('div');
       el.className = 'piece';
@@ -1248,28 +1266,38 @@ async function startPuzzle() {
   });
 }
 
-function scatterPositions(count, w, h, size) {
+function scatterPositions(count, w, h, pieceW, pieceH) {
   const positions = [];
   const margin = 6;
+  const spacing = 6;
+  const minDist = Math.max(pieceW, pieceH) * 0.85;
   let tries = 0;
+  // Random scatter first (playful look)
   while (positions.length < count && tries < 800) {
     tries++;
-    const x = margin + Math.random() * Math.max(0, w - size - margin * 2);
-    const y = margin + Math.random() * Math.max(0, h - size - margin * 2);
+    const x = margin + Math.random() * Math.max(0, w - pieceW - margin * 2);
+    const y = margin + Math.random() * Math.max(0, h - pieceH - margin * 2);
     let ok = true;
     for (const p of positions) {
       const dx = p.x - x, dy = p.y - y;
-      if (Math.hypot(dx, dy) < size * 0.85) { ok = false; break; }
+      if (Math.hypot(dx, dy) < minDist) { ok = false; break; }
     }
     if (ok) positions.push({ x, y });
   }
-  while (positions.length < count) {
-    const i = positions.length;
-    const cols = Math.max(1, Math.floor(w / (size + 4)));
-    positions.push({
-      x: (i % cols) * (size + 4) + margin,
-      y: Math.floor(i / cols) * (size + 4) + margin,
-    });
+  // Grid fallback if scatter couldn't fit them all — bound to tray rect
+  if (positions.length < count) {
+    positions.length = 0;
+    const cols = Math.max(1, Math.floor((w - margin * 2 + spacing) / (pieceW + spacing)));
+    const rows = Math.ceil(count / cols);
+    // If the grid is taller than the tray, squeeze rows together so everything fits
+    const stepX = pieceW + spacing;
+    const rowSpan = Math.max(0, h - margin * 2 - pieceH);
+    const stepY = rows > 1 ? Math.min(pieceH + spacing, rowSpan / (rows - 1)) : pieceH + spacing;
+    for (let i = 0; i < count; i++) {
+      const c = i % cols;
+      const r = Math.floor(i / cols);
+      positions.push({ x: margin + c * stepX, y: margin + r * stepY });
+    }
   }
   return positions;
 }
